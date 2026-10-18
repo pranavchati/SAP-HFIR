@@ -1,0 +1,1 @@
+- [Vite React dependency cache](vite-react-dependency-cache.md) — stale optimized deps can load old React versions after package updates; clear the artifact's Vite cache.

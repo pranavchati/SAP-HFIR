@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: portal
+    description: Inspection coordination portal
 paths:
   /healthz:
     get:
@@ -24,7 +26,365 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /portal/me:
+    get:
+      operationId: getPortalMe
+      tags: [portal]
+      summary: Get current user and bootstrap state
+      responses:
+        "200":
+          description: Current user context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalMe"
+  /portal/bootstrap:
+    post:
+      operationId: bootstrapPortalAdmin
+      tags: [portal]
+      summary: Claim first administrator account
+      responses:
+        "200":
+          description: Bootstrap outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalMe"
+  /portal/dashboard:
+    get:
+      operationId: getPortalDashboard
+      tags: [portal]
+      summary: Get dashboard counts and recent activity
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /portal/work-orders:
+    get:
+      operationId: listWorkOrders
+      tags: [portal]
+      summary: List searchable work orders
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+      responses:
+        "200":
+          description: Work orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WorkOrder" }
+  /portal/work-orders/{workOrderNo}:
+    get:
+      operationId: getWorkOrder
+      tags: [portal]
+      summary: Get one work order and timeline
+      parameters:
+        - $ref: "#/components/parameters/WorkOrderNo"
+      responses:
+        "200":
+          description: Work order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrderDetail"
+  /portal/work-orders/{workOrderNo}/mapping:
+    put:
+      operationId: saveWorkOrderMapping
+      tags: [portal]
+      summary: Save a mapping draft or submit an assignment
+      parameters:
+        - $ref: "#/components/parameters/WorkOrderNo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MappingInput"
+      responses:
+        "200":
+          description: Saved mapping and notification outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MappingResult"
+  /portal/imports/work-orders:
+    post:
+      operationId: importWorkOrders
+      tags: [portal]
+      summary: Validate and import SAP XML work orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkOrderImportInput"
+      responses:
+        "200":
+          description: Import preview and outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+  /portal/templates:
+    get:
+      operationId: listTemplates
+      tags: [portal]
+      summary: List active HFIR templates and operators
+      responses:
+        "200":
+          description: Template catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateCatalog"
+  /portal/templates/import:
+    post:
+      operationId: importTemplates
+      tags: [portal]
+      summary: Import HFIR templates from JSON or CSV-parsed records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateImportInput"
+      responses:
+        "200":
+          description: Template import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+  /portal/assignments:
+    get:
+      operationId: listAssignments
+      tags: [portal]
+      summary: List the current operator's assignments
+      responses:
+        "200":
+          description: Current operator assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WorkOrder" }
+  /portal/notifications:
+    get:
+      operationId: listNotifications
+      tags: [portal]
+      summary: List the current user's notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PortalNotification" }
+  /portal/notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [portal]
+      summary: Mark a notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalNotification"
+  /portal/rounds:
+    get:
+      operationId: listRounds
+      tags: [portal]
+      summary: List HFIR round executions
+      responses:
+        "200":
+          description: Round executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RoundExecution" }
+  /portal/imports/hfir-results:
+    post:
+      operationId: importHfirResults
+      tags: [portal]
+      summary: Import HFIR execution results
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoundImportInput"
+      responses:
+        "200":
+          description: Round import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+  /portal/history:
+    get:
+      operationId: listTransactionHistory
+      tags: [portal]
+      summary: List filtered work-order transaction history
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: asset
+          schema: { type: string }
+        - in: query
+          name: plant
+          schema: { type: string }
+        - in: query
+          name: template
+          schema: { type: string }
+        - in: query
+          name: operatorId
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: importedFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: importedTo
+          schema: { type: string, format: date }
+        - in: query
+          name: submittedFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: submittedTo
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: History entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/HistoryEntry" }
+  /portal/history.csv:
+    get:
+      operationId: exportTransactionHistory
+      tags: [portal]
+      summary: Export transaction history as CSV
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: asset
+          schema: { type: string }
+        - in: query
+          name: plant
+          schema: { type: string }
+        - in: query
+          name: template
+          schema: { type: string }
+        - in: query
+          name: operatorId
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: importedFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: importedTo
+          schema: { type: string, format: date }
+        - in: query
+          name: submittedFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: submittedTo
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+  /portal/admin:
+    get:
+      operationId: getPortalAdmin
+      tags: [portal]
+      summary: Get administration settings and users
+      responses:
+        "200":
+          description: Administration data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminData"
+  /portal/admin/settings:
+    patch:
+      operationId: updatePortalSettings
+      tags: [portal]
+      summary: Update portal integration display settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortalSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalSettings"
+  /portal/admin/users/{userId}/role:
+    patch:
+      operationId: updatePortalUserRole
+      tags: [portal]
+      summary: Change a portal user's role
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRoleInput"
+      responses:
+        "200":
+          description: Updated portal user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalUser"
 components:
+  parameters:
+    WorkOrderNo:
+      name: workOrderNo
+      in: path
+      required: true
+      schema: { type: string }
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +393,211 @@ components:
           type: string
       required:
         - status
+    PortalMe:
+      type: object
+      required: [user, bootstrapAvailable, demoMode]
+      properties:
+        user: { oneOf: [{ $ref: "#/components/schemas/PortalUser" }, { type: "null" }] }
+        bootstrapAvailable: { type: boolean }
+        demoMode: { type: boolean }
+    PortalUser:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [Administrator, Planner/Coordinator, Operator] }
+    Dashboard:
+      type: object
+      required: [summary, recentActivity, integrations]
+      properties:
+        summary: { type: object, additionalProperties: { type: integer } }
+        recentActivity: { type: array, items: { $ref: "#/components/schemas/HistoryEntry" } }
+        integrations: { $ref: "#/components/schemas/PortalSettings" }
+    WorkOrder:
+      type: object
+      required: [workOrderNo, description, asset, plant, priority, mappingState, templateName, operatorName, dueDate]
+      properties:
+        workOrderNo: { type: string }
+        description: { type: string }
+        asset: { type: string }
+        functionalLocation: { type: string }
+        plant: { type: string }
+        priority: { type: string }
+        plannedStartDate: { type: string }
+        dueDate: { type: string }
+        mappingState: { type: string, enum: [Unmapped, Draft, Submitted] }
+        templateId: { type: string }
+        templateName: { type: string }
+        operatorId: { type: string }
+        operatorName: { type: string }
+        instructions: { type: string }
+        submittedAt: { type: string }
+        importedAt: { type: string }
+        roundCount: { type: integer }
+    WorkOrderDetail:
+      type: object
+      required: [workOrder, history, rounds]
+      properties:
+        workOrder: { $ref: "#/components/schemas/WorkOrder" }
+        history: { type: array, items: { $ref: "#/components/schemas/HistoryEntry" } }
+        rounds: { type: array, items: { $ref: "#/components/schemas/RoundExecution" } }
+    MappingInput:
+      type: object
+      required: [action, idempotencyKey]
+      properties:
+        action: { type: string, enum: [Draft, Submit] }
+        templateId: { type: string }
+        operatorId: { type: string }
+        instructions: { type: string }
+        revisionReason: { type: string }
+        idempotencyKey: { type: string }
+    MappingResult:
+      type: object
+      required: [workOrder, notificationCreated]
+      properties:
+        workOrder: { $ref: "#/components/schemas/WorkOrder" }
+        notificationCreated: { type: boolean }
+        message: { type: string }
+    WorkOrderImportInput:
+      type: object
+      required: [filename, xml, confirm]
+      properties:
+        filename: { type: string }
+        xml: { type: string }
+        confirm: { type: boolean }
+    Template:
+      type: object
+      required: [id, name, active, source]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        active: { type: boolean }
+        source: { type: string }
+    TemplateCatalog:
+      type: object
+      required: [templates, operators]
+      properties:
+        templates: { type: array, items: { $ref: "#/components/schemas/Template" } }
+        operators: { type: array, items: { $ref: "#/components/schemas/PortalUser" } }
+    TemplateImportInput:
+      type: object
+      required: [filename, templates]
+      properties:
+        filename: { type: string }
+        templates: { type: array, items: { $ref: "#/components/schemas/Template" } }
+    RoundExecution:
+      type: object
+      required: [id, workOrderNo, templateName, templateId, operatorName, scheduledDate, dueDate, completedAt, executionStatus, approvalStatus, overdue, rawStatus, lastSyncAt, rejectionReason]
+      properties:
+        id: { type: string }
+        workOrderNo: { type: string }
+        templateName: { type: string }
+        templateId: { type: string }
+        operatorName: { type: string }
+        scheduledDate: { type: string }
+        dueDate: { type: string }
+        completedAt: { type: string }
+        executionStatus: { type: string }
+        approvalStatus: { type: string }
+        overdue: { type: string }
+        rawStatus: { type: string }
+        lastSyncAt: { type: string }
+        rejectionReason: { type: string }
+        sourceTimestamp: { type: string }
+    RoundImportInput:
+      type: object
+      required: [filename, rounds]
+      properties:
+        filename: { type: string }
+        rounds: { type: array, items: { $ref: "#/components/schemas/RoundImportRecord" } }
+    RoundImportRecord:
+      type: object
+      required: [sourceRoundId]
+      properties:
+        id: { type: string }
+        sourceRoundId: { type: string }
+        workOrderNo: { type: ["string", "null"] }
+        templateName: { type: string }
+        templateId: { type: string }
+        operatorId: { type: string }
+        operatorName: { type: string }
+        scheduledDate: { type: string }
+        dueDate: { type: string }
+        completedAt: { type: string }
+        executionStatus: { type: string }
+        approvalStatus: { type: string }
+        overdue: { type: string }
+        rawStatus: { type: string }
+        lastSyncAt: { type: string }
+        sourceTimestamp: { type: string }
+        rejectionReason: { type: string }
+        sapWorkOrderNo: { type: ["string", "null"] }
+    ImportResult:
+      type: object
+      required: [batchId, accepted, rejected, updated, duplicates, errors]
+      properties:
+        batchId: { type: string }
+        accepted: { type: integer }
+        rejected: { type: integer }
+        updated: { type: integer }
+        duplicates: { type: integer }
+        errors: { type: array, items: { type: string } }
+        preview: { type: array, items: { type: object, additionalProperties: true } }
+    PortalNotification:
+      type: object
+      required: [id, workOrderNo, description, asset, templateName, templateId, operatorId, dueDate, instructions, submitter, createdAt, read]
+      properties:
+        id: { type: string }
+        workOrderNo: { type: string }
+        description: { type: string }
+        asset: { type: string }
+        templateName: { type: string }
+        templateId: { type: string }
+        operatorId: { type: string }
+        dueDate: { type: string }
+        instructions: { type: string }
+        submitter: { type: string }
+        createdAt: { type: string }
+        read: { type: boolean }
+    HistoryEntry:
+      type: object
+      required: [id, workOrderNo, type, description, occurredAt, actor]
+      properties:
+        id: { type: string }
+        workOrderNo: { type: string }
+        type: { type: string }
+        description: { type: string }
+        occurredAt: { type: string }
+        actor: { type: string }
+    PortalSettings:
+      type: object
+      required: [sapMode, hfirMode, openHfirUrl, timezone, lastSyncAt, lastSyncError]
+      properties:
+        sapMode: { type: string, enum: [Demo, Live] }
+        hfirMode: { type: string, enum: [Demo, Live] }
+        openHfirUrl: { type: string }
+        timezone: { type: string }
+        lastSyncAt: { type: string }
+        lastSyncError: { type: string }
+    PortalSettingsInput:
+      type: object
+      properties:
+        openHfirUrl: { type: string }
+        timezone: { type: string }
+        lastSyncError: { type: string }
+    UserRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [Administrator, Planner/Coordinator, Operator] }
+    AdminData:
+      type: object
+      required: [users, templates, settings, unmatched]
+      properties:
+        users: { type: array, items: { $ref: "#/components/schemas/PortalUser" } }
+        templates: { type: array, items: { $ref: "#/components/schemas/Template" } }
+        settings: { $ref: "#/components/schemas/PortalSettings" }
+        unmatched: { type: array, items: { $ref: "#/components/schemas/RoundExecution" } }
 

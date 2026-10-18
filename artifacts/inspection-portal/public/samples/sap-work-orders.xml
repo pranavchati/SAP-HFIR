@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<WorkOrders>
+  <WorkOrder>
+    <WorkOrderNo>0000417901</WorkOrderNo>
+    <Description>Inspect auxiliary diesel generator</Description>
+    <Asset>DG-4402</Asset>
+    <FunctionalLocation>PLANT-A/UTILITIES/GEN-02</FunctionalLocation>
+    <Plant>Riyadh Utilities</Plant>
+    <Priority>High</Priority>
+    <PlannedStartDate>20261020</PlannedStartDate>
+    <DueDate>20261024</DueDate>
+  </WorkOrder>
+  <WorkOrder>
+    <WorkOrderNo>0000417902</WorkOrderNo>
+    <Description>Check workshop overhead crane</Description>
+    <Asset>CR-1008</Asset>
+    <FunctionalLocation>PLANT-A/WORKSHOP/CRANE-08</FunctionalLocation>
+    <Plant>Riyadh Utilities</Plant>
+    <Priority>Medium</Priority>
+    <PlannedStartDate>20261021</PlannedStartDate>
+    <DueDate>20261026</DueDate>
+  </WorkOrder>
+</WorkOrders>

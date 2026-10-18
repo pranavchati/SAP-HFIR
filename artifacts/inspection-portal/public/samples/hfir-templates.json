@@ -1,0 +1,5 @@
+[
+  { "id": "HFIR-0101", "name": "VACUUM TRUCK PRE-USE CHECKLIST", "active": true, "source": "Imported" },
+  { "id": "HFIR-0102", "name": "MOBILE CRANE PRE-OPERATION INSPECTION", "active": true, "source": "Imported" },
+  { "id": "HFIR-0103", "name": "DIESEL GENERATOR WEEKLY INSPECTION", "active": true, "source": "Imported" }
+]

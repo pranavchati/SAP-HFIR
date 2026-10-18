@@ -1,0 +1,4 @@
+sourceRoundId,workOrderNo,templateId,templateName,operatorName,scheduledDate,dueDate,completedAt,executionStatus,approvalStatus,overdue,rawStatus,sourceTimestamp,rejectionReason
+RND-DEMO-1001,0000417823,HFIR-0103,DIESEL GENERATOR WEEKLY INSPECTION,Operator A,2026-10-18,2026-10-22,2026-10-18T11:30:00Z,Successful,Approved,No,Closed,2026-10-18T11:35:00Z,
+RND-DEMO-1002,0000417824,HFIR-0102,MOBILE CRANE PRE-OPERATION INSPECTION,Operator B,2026-10-17,2026-10-20,,Incomplete,Rejected,Yes,Rejected by supervisor,2026-10-18T10:00:00Z,Wire-rope photographs are missing
+RND-DEMO-1003,SAP-UNKNOWN-99,HFIR-0105,PRESSURE VESSEL VISUAL INSPECTION,Operator C,2026-10-16,2026-10-19,,Unknown,Awaiting approval,Unknown,Vendor-specific state: REVIEW_QUEUE,2026-10-18T09:00:00Z,

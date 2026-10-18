@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SAP–HFIR Inspection Portal"
+description = "A responsive operations portal for importing SAP work orders, coordinating HFIR inspection templates and operators, and tracking round execution results with persistent history and clearly labeled demo integrations."
+version = "1.0.0"
+id = "artifacts/inspection-portal"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24987
+
+[services.development]
+run = "pnpm --filter @workspace/inspection-portal run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/inspection-portal", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/inspection-portal/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24987"
+BASE_PATH = "/"

@@ -1,0 +1,32 @@
+[
+  {
+    "sourceRoundId": "RND-DEMO-1001",
+    "workOrderNo": "0000417823",
+    "templateId": "HFIR-0103",
+    "templateName": "DIESEL GENERATOR WEEKLY INSPECTION",
+    "operatorName": "Operator A",
+    "scheduledDate": "2026-10-18",
+    "dueDate": "2026-10-22",
+    "completedAt": "2026-10-18T11:30:00Z",
+    "executionStatus": "Successful",
+    "approvalStatus": "Approved",
+    "overdue": "No",
+    "rawStatus": "Closed",
+    "sourceTimestamp": "2026-10-18T11:35:00Z",
+    "rejectionReason": ""
+  },
+  {
+    "sourceRoundId": "RND-DEMO-1002",
+    "workOrderNo": "SAP-UNKNOWN-99",
+    "templateId": "HFIR-0105",
+    "templateName": "PRESSURE VESSEL VISUAL INSPECTION",
+    "operatorName": "Operator C",
+    "scheduledDate": "2026-10-16",
+    "dueDate": "2026-10-19",
+    "executionStatus": "Unknown",
+    "approvalStatus": "Awaiting approval",
+    "overdue": "Unknown",
+    "rawStatus": "Vendor-specific state: REVIEW_QUEUE",
+    "sourceTimestamp": "2026-10-18T09:00:00Z"
+  }
+]
