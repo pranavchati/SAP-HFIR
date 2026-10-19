@@ -413,7 +413,7 @@ function statusValue(value: string | undefined) {
 }
 function Rounds() {
   const me=useGetPortalMe();
-  const q=useListRounds({query:{queryKey:getListRoundsQueryKey(),enabled:!!me.data?.user,refetchOnMount:'always'},request:{cache:'no-store'}}); const admin=useGetPortalAdmin({query:{queryKey:getGetPortalAdminQueryKey(),enabled:me.data?.user?.role==='Administrator'}});
+  const q=useListRounds({query:{queryKey:getListRoundsQueryKey(),enabled:me.isSuccess,refetchOnMount:'always'},request:{cache:'no-store'}}); const admin=useGetPortalAdmin({query:{queryKey:getGetPortalAdminQueryKey(),enabled:me.data?.user?.role==='Administrator'}});
   const rounds=q.data??[]; const unmatched=admin.data?.unmatched??[];
   return <div className="page-enter"><Heading eyebrow="HFIR result reconciliation" title="Round executions" description="Imported HFIR execution data only. This portal has no schedule, execute or approve controls." action={me.data?.user?.role==='Administrator'?<ImportRoundsButton/>:undefined}/>
     <Card className="mb-5"><div className="flex items-start gap-3 border-l-2 border-[#de965f] bg-secondary/45 p-4 text-[11px] leading-relaxed"><CircleHelp size={15} className="mt-0.5 shrink-0 text-primary"/><span>Round status is kept separate from mapping status. No-result is shown as <b>Awaiting HFIR data</b>; unfamiliar vendor values are shown as <b>Unknown</b>.</span></div></Card>
