@@ -300,22 +300,44 @@ export async function seedInspectionPortal(): Promise<void> {
       lastSyncAt: new Date("2026-10-18T05:40:00.000Z"),
     }))).onConflictDoNothing();
 
-    const [hasHistory] = await db.select({ id: portalHistory.id }).from(portalHistory).limit(1);
-    if (!hasHistory) {
-      await db.insert(portalHistory).values([
-        ...workOrders.map((row) => ({
-          workOrderNo: row.workOrderNo,
-          type: "SAP import",
-          description: `Sample SAP work order imported: ${row.description}.`,
-          actor: "Demo SAP import",
-          occurredAt: new Date("2026-10-18T05:40:00.000Z"),
-        })),
-        { workOrderNo: "0000417824", type: "Mapping draft", description: "Draft mapping created for Mobile Crane Pre-Operation Inspection.", actor: "demo-planner" },
-        { workOrderNo: "0000417825", type: "Mapping submitted", description: "Pump routine inspection assigned to Salem Al Harbi.", actor: "demo-planner", occurredAt: new Date("2026-10-16T08:30:00.000Z") },
-        { workOrderNo: "0000417826", type: "Mapping submitted", description: "Gas detector pre-use checklist assigned to Noura Al Qahtani.", actor: "demo-planner", occurredAt: new Date("2026-10-14T06:45:00.000Z") },
-        { workOrderNo: "0000417827", type: "Mapping submitted", description: "Pressure vessel inspection assigned to Salem Al Harbi.", actor: "demo-planner", occurredAt: new Date("2026-10-15T10:00:00.000Z") },
-      ]);
-    }
+    const demoHistoryEvents = [
+      ...workOrders.map((row) => ({
+        workOrderNo: row.workOrderNo,
+        type: "SAP import",
+        description: `Sample SAP work order imported: ${row.description}.`,
+        actor: "Demo SAP import",
+        occurredAt: new Date("2026-10-18T05:40:00.000Z"),
+      })),
+      { workOrderNo: "0000417824", type: "Mapping draft", description: "Draft mapping created for Mobile Crane Pre-Operation Inspection.", actor: "demo-planner", occurredAt: new Date("2026-10-16T08:10:00.000Z") },
+      { workOrderNo: "0000417825", type: "Mapping submitted", description: "Pump routine inspection assigned to Salem Al Harbi.", actor: "demo-planner", occurredAt: new Date("2026-10-16T08:30:00.000Z") },
+      { workOrderNo: "0000417826", type: "Mapping submitted", description: "Gas detector pre-use checklist assigned to Noura Al Qahtani.", actor: "demo-planner", occurredAt: new Date("2026-10-14T06:45:00.000Z") },
+      { workOrderNo: "0000417827", type: "Mapping submitted", description: "Pressure vessel inspection assigned to Salem Al Harbi.", actor: "demo-planner", occurredAt: new Date("2026-10-15T10:00:00.000Z") },
+      { workOrderNo: "0000417830", type: "Mapping submitted", description: "Cooling tower fan inspection assigned to Salem Al Harbi.", actor: "demo-planner", occurredAt: new Date("2026-10-18T07:15:00.000Z") },
+      { workOrderNo: "0000417831", type: "Mapping draft", description: "Draft mapping created for vacuum truck pre-use inspection.", actor: "demo-planner", occurredAt: new Date("2026-10-18T07:25:00.000Z") },
+      ...demoRounds.flatMap((round) => round.workOrderNo ? [{
+        workOrderNo: round.workOrderNo,
+        type: "HFIR result import",
+        description: `Sample HFIR round ${round.sourceRoundId} imported: execution ${round.executionStatus}; approval ${round.approvalStatus}.`,
+        actor: "Demo HFIR result import",
+        occurredAt: round.sourceTimestamp,
+      }] : []),
+    ];
+    const existingHistory = await db.select({
+      workOrderNo: portalHistory.workOrderNo,
+      type: portalHistory.type,
+      description: portalHistory.description,
+      actor: portalHistory.actor,
+    }).from(portalHistory);
+    const historyKeys = new Set(existingHistory.map((event) => JSON.stringify([
+      event.workOrderNo, event.type, event.description, event.actor,
+    ])));
+    const missingHistory = demoHistoryEvents.filter((event) => {
+      const key = JSON.stringify([event.workOrderNo, event.type, event.description, event.actor]);
+      if (historyKeys.has(key)) return false;
+      historyKeys.add(key);
+      return true;
+    });
+    if (missingHistory.length) await db.insert(portalHistory).values(missingHistory);
 
     await db.insert(portalSettings).values([
       { key: "sapMode", value: "Demo" },

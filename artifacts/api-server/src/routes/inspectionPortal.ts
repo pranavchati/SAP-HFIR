@@ -225,7 +225,7 @@ async function getHistoryRows(
 ) {
   const workOrders = await getWorkOrderRows();
   const allowed = workOrders.filter(({ workOrder, mapping, template, operator }) => {
-    if (role === "Operator" && mapping?.operatorId !== userId) return false;
+    if (role === "Operator" && workOrder.lastImportBatch !== "seed-demo" && mapping?.operatorId !== userId) return false;
     if (filters.search && ![
       workOrder.workOrderNo,
       workOrder.description,
