@@ -236,6 +236,7 @@ function Dashboard() {
   const bootstrap = useBootstrapPortalAdmin();
   const metrics = dash.data?.summary ?? {};
   const recent = dash.data?.recentActivity ?? [];
+  const includesSharedDemoData = !me.data?.user || me.data.user.role === 'Operator';
   const workOrderMetrics: Array<[string, number, string, typeof ClipboardList]> = [
     ['Imported work orders', metrics.importedWorkOrders ?? 0, 'SAP source records', ClipboardList],
     ['Unmapped work orders', metrics.unmappedWorkOrders ?? 0, 'Awaiting coordination', Link2],
@@ -253,6 +254,7 @@ function Dashboard() {
   if (dash.isError) return <State mode="error" retry={() => dash.refetch()}/>;
   return <div className="page-enter">
      <Heading eyebrow="Operations overview" title="The coordination desk" description={`A current view of work order handoffs and imported HFIR rounds${me.data?.user ? ` · ${me.data.user.name}` : ''}.`} action={me.data?.user?.role!=='Operator'?<Link href="/import" data-testid="button-import-sap" className="btn-primary"><Plus size={15}/> Import SAP XML</Link>:undefined}/>
+    {includesSharedDemoData && <div className="mb-4 border border-[#d8d2c7] bg-[#f3f0e8] px-4 py-3 text-[10px] leading-relaxed text-muted-foreground" data-testid="notice-shared-demo-data"><span className="font-semibold text-foreground">Shared demo dataset:</span> Overview counts include the 10 simulated sample SAP work orders, plus any real work orders assigned to your account.</div>}
     <div className="mb-7">
       <div className="mb-3 text-[9px] font-bold uppercase tracking-[.18em] text-muted-foreground">Work orders</div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{workOrderMetrics.map(([label,value,caption,Icon])=><Card key={label} className="p-5"><div className="flex items-start justify-between"><div><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">{label}</div><div className="mt-3 font-display text-[34px] font-extrabold tracking-[-.05em]">{value}</div></div><div className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-primary"><Icon size={17}/></div></div><div className="mt-3 text-[10px] text-muted-foreground">{caption}</div></Card>)}</div>

@@ -211,7 +211,11 @@ function notificationShape(row: typeof portalNotifications.$inferSelect) {
 async function getVisibleWorkOrderRows(userId: string, role: string) {
   const rows = await getWorkOrderRows();
   if (role !== "Operator") return rows;
-  return rows.filter((row) => row.mapping?.operatorId === userId);
+  // Shared demo records stay visible so every signed-in role can explore the
+  // seeded workspace; real work orders remain limited to the operator assigned.
+  return rows.filter(({ workOrder, mapping }) => (
+    workOrder.lastImportBatch === "seed-demo" || mapping?.operatorId === userId
+  ));
 }
 
 async function getHistoryRows(
