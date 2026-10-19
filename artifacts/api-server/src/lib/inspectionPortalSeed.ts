@@ -95,6 +95,36 @@ const workOrders = [
     plannedStartDate: "2026-10-20",
     dueDate: "2026-10-27",
   },
+  {
+    workOrderNo: "0000417830",
+    description: "Check cooling tower fan alignment and guards",
+    asset: "CT-2105",
+    functionalLocation: "PLANT-B/UTILITIES/COOLING-TOWER-05",
+    plant: "Jubail Process",
+    priority: "High",
+    plannedStartDate: "2026-10-19",
+    dueDate: "2026-10-22",
+  },
+  {
+    workOrderNo: "0000417831",
+    description: "Complete vacuum truck pre-use inspection",
+    asset: "VT-0098",
+    functionalLocation: "PLANT-C/LOGISTICS/TRUCK-98",
+    plant: "Yanbu Refining",
+    priority: "Medium",
+    plannedStartDate: "2026-10-20",
+    dueDate: "2026-10-23",
+  },
+  {
+    workOrderNo: "0000417832",
+    description: "Inspect scaffold access and tagging",
+    asset: "SCF-0144",
+    functionalLocation: "PLANT-A/MAINTENANCE/SCAFFOLD-144",
+    plant: "Riyadh Utilities",
+    priority: "Low",
+    plannedStartDate: "2026-10-21",
+    dueDate: "2026-10-29",
+  },
 ];
 
 const demoRounds = [
@@ -247,6 +277,22 @@ export async function seedInspectionPortal(): Promise<void> {
         submittedBy: "demo-planner",
         submittedAt: new Date("2026-10-15T10:00:00.000Z"),
       },
+      {
+        workOrderNo: "0000417830",
+        templateId: "HFIR-0104",
+        operatorId: "demo-operator-a",
+        instructions: "Check fan alignment, guard condition, and abnormal vibration.",
+        state: "Submitted",
+        submittedBy: "demo-planner",
+        submittedAt: new Date("2026-10-18T07:15:00.000Z"),
+      },
+      {
+        workOrderNo: "0000417831",
+        templateId: "HFIR-0101",
+        operatorId: "demo-operator-b",
+        instructions: "Confirm hose, brakes, and emergency equipment before dispatch.",
+        state: "Draft",
+      },
     ]).onConflictDoNothing();
 
     await db.insert(hfirRoundExecutions).values(demoRounds.map((round) => ({
@@ -287,7 +333,10 @@ export async function seedInspectionPortal(): Promise<void> {
       importerId: "demo-planner",
       outcome: "Demo data",
       accepted: workOrders.length,
-    }).onConflictDoNothing();
+    }).onConflictDoUpdate({
+      target: importBatches.id,
+      set: { accepted: workOrders.length, outcome: "Demo data" },
+    });
   } catch (error) {
     logger.error({ err: error }, "Unable to seed inspection portal demo data");
     throw error;

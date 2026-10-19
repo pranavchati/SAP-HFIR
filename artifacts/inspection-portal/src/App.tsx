@@ -5,7 +5,7 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import {
   Activity, ArrowDownUp, ArrowRight, Bell, Boxes, Check, CheckCircle2,
-  ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Download, FileClock,
+  ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Download, FileClock,
   FileUp, HardHat, LayoutDashboard, Link2, LoaderCircle, LogOut, Menu, PackageOpen,
   Plus, Search, Settings2, ShieldCheck, TriangleAlert, Upload,
   UsersRound, X,
@@ -73,14 +73,16 @@ const clerkAppearance = {
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
-  { href: '/import', label: 'SAP import', icon: FileUp, roles: ['Administrator', 'Planner/Coordinator'] },
-  { href: '/work-orders', label: 'Work orders', icon: ClipboardList, roles: ['Administrator', 'Planner/Coordinator'] },
-  { href: '/samples', label: 'Sample work orders', icon: Boxes, roles: ['Administrator', 'Planner/Coordinator'] },
   { href: '/assignments', label: 'Assignments', icon: UsersRound, roles: ['Operator'] },
   { href: '/rounds', label: 'HFIR rounds', icon: Activity, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/history', label: 'Handoff history', icon: FileClock, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/notifications', label: 'Notifications', icon: Bell, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/admin', label: 'Administration', icon: Settings2, roles: ['Administrator'] },
+];
+const sapNavItems = [
+  { href: '/import', label: 'Import SAP XML', icon: FileUp },
+  { href: '/work-orders', label: 'Imported work orders', icon: ClipboardList },
+  { href: '/samples', label: 'Sample work orders', icon: Boxes },
 ];
 const INSTRUCTION = 'Open HFIR, schedule the selected round template, and manually enter this SAP work order number when creating or executing the round.';
 const roleOptions: PortalUserRole[] = ['Administrator', 'Planner/Coordinator', 'Operator'];
@@ -102,10 +104,16 @@ function ClerkCacheReset() {
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sapMenuOpen, setSapMenuOpen] = useState(location === '/import' || location === '/work-orders' || location === '/samples');
   const { user } = useUser();
   const me = useGetPortalMe({ query: { queryKey: getGetPortalMeQueryKey(), enabled: !!user } });
-  const activeTitle = navItems.find((n) => n.href === location)?.label ?? 'Inspection portal';
+  const isSapRoute = sapNavItems.some((item) => item.href === location);
+  const canManageSap = ['Administrator', 'Planner/Coordinator'].includes(me.data?.user?.role ?? '');
+  const activeTitle = sapNavItems.find((n) => n.href === location)?.label ?? navItems.find((n) => n.href === location)?.label ?? 'Inspection portal';
   const initials = user?.firstName?.slice(0, 1) || 'O';
+  useEffect(() => {
+    if (isSapRoute) setSapMenuOpen(true);
+  }, [isSapRoute]);
   return <div className="shell-grain min-h-[100dvh] bg-background">
     <aside className={`fixed inset-y-0 left-0 z-50 flex w-[252px] flex-col bg-[#20343d] text-[#f2efe7] transition-transform duration-200 md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex h-[78px] items-center gap-3 border-b border-white/10 px-6">
@@ -114,6 +122,16 @@ function Shell({ children }: { children: ReactNode }) {
       </div>
       <div className="px-5 pt-7 pb-2 text-[9px] font-semibold uppercase tracking-[.2em] text-white/40">Operations desk</div>
       <nav className="flex-1 space-y-1 px-3">
+        {canManageSap && <div>
+          <button type="button" aria-expanded={sapMenuOpen} aria-controls="sap-work-orders-submenu" data-testid="button-nav-sap-work-orders" onClick={() => setSapMenuOpen((open) => !open)} className={`flex h-10 w-full items-center gap-3 rounded-md px-3 text-left text-[13px] transition-colors ${isSapRoute ? 'text-white' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}>
+            <FileUp size={16} strokeWidth={1.8}/><span className="flex-1">SAP work orders</span><ChevronDown size={14} className={`transition-transform ${sapMenuOpen ? 'rotate-180' : ''}`}/>
+          </button>
+          {sapMenuOpen && <div id="sap-work-orders-submenu" className="ml-5 space-y-1 border-l border-white/15 py-1 pl-2">
+            {sapNavItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-nav-${label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setMobileOpen(false)} className={`flex min-h-9 items-center gap-2 rounded-md px-2 text-[11px] transition-colors ${location === href ? 'bg-[#e79b5f] font-semibold text-[#20343d]' : 'text-white/65 hover:bg-white/8 hover:text-white'}`}>
+              <Icon size={14} strokeWidth={1.8}/><span>{label}</span>
+            </Link>)}
+          </div>}
+        </div>}
         {navItems.filter((item) => item.roles.includes(me.data?.user?.role ?? 'Operator')).map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-nav-${label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => setMobileOpen(false)} className={`group flex h-10 items-center gap-3 rounded-md px-3 text-[13px] transition-colors ${location === href ? 'bg-[#e79b5f] text-[#20343d] font-semibold' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}>
           <Icon size={16} strokeWidth={1.8}/><span>{label}</span>
           {label === 'Notifications' && <NotificationCount/>}
@@ -316,7 +334,8 @@ function WorkOrders() {
      save.mutate({workOrderNo:selected.workOrderNo,data:{action,templateId:templateId||undefined,operatorId:operatorId||undefined,instructions,revisionReason:revisionReason||undefined,idempotencyKey:crypto.randomUUID()}},{onSuccess:(result)=>{qc.invalidateQueries({queryKey:getListWorkOrdersQueryKey(params)});qc.invalidateQueries({queryKey:getListAssignmentsQueryKey()});qc.invalidateQueries({queryKey:getGetWorkOrderQueryKey(selected.workOrderNo)});qc.invalidateQueries({queryKey:getListNotificationsQueryKey()});qc.invalidateQueries({queryKey:getGetPortalDashboardQueryKey()});qc.invalidateQueries({queryKey:getListTransactionHistoryQueryKey()});setSelected(null);setSaveNotice(result.message??'Mapping saved.');}});
   };
   return <div className="page-enter">
-    <Heading eyebrow="SAP source register" title="Work orders" description="Search exact SAP IDs, review mapping state and prepare a portal handoff. No scheduling takes place here." action={<Link href="/import" data-testid="button-workorders-import" className="btn-secondary"><Upload size={14}/> Import XML</Link>}/>
+     <Heading eyebrow="SAP source register" title="Imported SAP work orders" description="Search exact SAP IDs, review mapping state and prepare a portal handoff. No scheduling takes place here." action={<Link href="/import" data-testid="button-workorders-import" className="btn-secondary"><Upload size={14}/> Import XML</Link>}/>
+      <div className="mb-4 flex items-start gap-3 border border-[#d8d2c7] bg-[#f3f0e8] px-4 py-3" data-testid="notice-sample-work-orders"><Boxes size={16} className="mt-0.5 shrink-0 text-primary"/><div><div className="text-[11px] font-semibold">Demo sample data is preloaded</div><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">The starter dataset includes 10 SAP work orders to explore searching, mapping, and handoffs. These are simulated examples, not live SAP records.</p></div></div>
      {saveNotice&&<div className="mb-4 flex items-center justify-between rounded border border-primary/20 bg-primary/5 px-4 py-3 text-xs" role="status">{saveNotice}<button onClick={()=>setSaveNotice('')} aria-label="Dismiss mapping result"><X size={14}/></button></div>}
      <Card>
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
