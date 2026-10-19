@@ -728,11 +728,19 @@ router.post("/notifications/:notificationId/read", async (req, res): Promise<voi
   res.json(MarkNotificationReadResponse.parse(updatedNotification ? notificationShape(updatedNotification) : notificationShape(notification)));
 });
 
-router.get("/rounds", requireRole("Administrator", "Planner/Coordinator", "Operator"), async (req, res): Promise<void> => {
+router.get("/rounds", async (req, res): Promise<void> => {
   const userId = currentUserId(req);
   const [user] = await db.select().from(portalUsers).where(eq(portalUsers.id, userId)).limit(1);
   const rounds = await db.select().from(hfirRoundExecutions).orderBy(desc(hfirRoundExecutions.lastSyncAt));
-  const visible = user?.role === "Operator" ? rounds.filter((round) => round.operatorId === userId) : rounds;
+  const canSeeAllRounds = user?.role === "Administrator" || user?.role === "Planner/Coordinator";
+  const visible = canSeeAllRounds ? rounds : rounds.filter((round) => {
+    const payload = round.payload;
+    const isSharedDemoRound = !!payload
+      && typeof payload === "object"
+      && !Array.isArray(payload)
+      && (payload as Record<string, unknown>).sample === true;
+    return isSharedDemoRound || (user?.role === "Operator" && round.operatorId === userId);
+  });
   res.json(ListRoundsResponse.parse(visible.map(roundShape)));
 });
 
