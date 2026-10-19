@@ -100,6 +100,33 @@ export const hfirRoundExecutions = pgTable("hfir_round_executions", {
   workOrderNoIdx: index("hfir_round_work_order_idx").on(table.workOrderNo),
 }));
 
+export const hfirRoundAttachments = pgTable("hfir_round_attachments", {
+  id: text("id").primaryKey(),
+  roundId: text("round_id").notNull().references(() => hfirRoundExecutions.id, { onDelete: "cascade" }),
+  objectPath: text("object_path").notNull().unique(),
+  fileName: text("file_name").notNull(),
+  contentType: text("content_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  status: text("status").notNull().default("Uploading"),
+  uploadedBy: text("uploaded_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  roundCreated: index("hfir_round_attachment_created_idx").on(table.roundId, table.createdAt),
+}));
+
+export const hfirSapSubmissionQueue = pgTable("hfir_sap_submission_queue", {
+  id: text("id").primaryKey(),
+  roundId: text("round_id").notNull().references(() => hfirRoundExecutions.id, { onDelete: "cascade" }),
+  workOrderNo: text("work_order_no").notNull(),
+  executionStatus: text("execution_status").notNull(),
+  approvalStatus: text("approval_status").notNull(),
+  queueStatus: text("queue_status").notNull().default("Queued"),
+  queuedBy: text("queued_by").notNull(),
+  queuedAt: timestamp("queued_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  roundUnique: uniqueIndex("hfir_sap_submission_round_unique").on(table.roundId),
+}));
+
 export const roundStatusHistory = pgTable("round_status_history", {
   id: serial("id").primaryKey(),
   roundId: text("round_id").notNull(),

@@ -151,7 +151,16 @@ export const GetWorkOrderResponse = zod.object({
   "rawStatus": zod.string(),
   "lastSyncAt": zod.string(),
   "rejectionReason": zod.string(),
-  "sourceTimestamp": zod.string().optional()
+  "sourceTimestamp": zod.string().optional(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string(),
+  "fileUrl": zod.string()
+})).optional(),
+  "sapSubmissionStatus": zod.string().optional(),
+  "sapQueuedAt": zod.string().optional()
 }))
 })
 
@@ -346,9 +355,101 @@ export const ListRoundsResponseItem = zod.object({
   "rawStatus": zod.string(),
   "lastSyncAt": zod.string(),
   "rejectionReason": zod.string(),
-  "sourceTimestamp": zod.string().optional()
+  "sourceTimestamp": zod.string().optional(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string(),
+  "fileUrl": zod.string()
+})).optional(),
+  "sapSubmissionStatus": zod.string().optional(),
+  "sapQueuedAt": zod.string().optional()
 })
 export const ListRoundsResponse = zod.array(ListRoundsResponseItem)
+
+
+/**
+ * @summary Request a private PDF upload URL for an eligible HFIR round
+ */
+export const RequestRoundAttachmentUploadUrlParams = zod.object({
+  "roundId": zod.coerce.string()
+})
+
+export const requestRoundAttachmentUploadUrlBodyFileNameMax = 180;
+
+export const requestRoundAttachmentUploadUrlBodySizeBytesMax = 26214400;
+
+
+
+export const RequestRoundAttachmentUploadUrlBody = zod.object({
+  "fileName": zod.string().min(1).max(requestRoundAttachmentUploadUrlBodyFileNameMax),
+  "sizeBytes": zod.number().int().min(1).max(requestRoundAttachmentUploadUrlBodySizeBytesMax),
+  "contentType": zod.enum(['application/pdf'])
+})
+
+export const RequestRoundAttachmentUploadUrlResponse = zod.object({
+  "id": zod.string(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Confirm a completed PDF upload
+ */
+export const CompleteRoundAttachmentUploadParams = zod.object({
+  "roundId": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const CompleteRoundAttachmentUploadResponse = zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string(),
+  "fileUrl": zod.string()
+})
+
+
+/**
+ * @summary Download a private round attachment
+ */
+export const DownloadRoundAttachmentFileParams = zod.object({
+  "roundId": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const DownloadRoundAttachmentFileResponse = zod.unknown()
+
+
+/**
+ * @summary Queue an HFIR status snapshot for later SAP submission
+ */
+export const QueueRoundStatusForSapParams = zod.object({
+  "roundId": zod.coerce.string()
+})
+
+export const QueueRoundStatusForSapResponse = zod.object({
+  "id": zod.string(),
+  "roundId": zod.string(),
+  "workOrderNo": zod.string(),
+  "executionStatus": zod.string(),
+  "approvalStatus": zod.string(),
+  "status": zod.enum(['Queued']),
+  "queuedAt": zod.string(),
+  "alreadyQueued": zod.boolean(),
+  "note": zod.string()
+})
+
+
+/**
+ * @summary Serve a public object from configured public storage paths
+ */
+export const GetPublicStorageObjectParams = zod.object({
+  "filePath": zod.coerce.string()
+})
+
+export const GetPublicStorageObjectResponse = zod.unknown()
 
 
 /**
@@ -474,7 +575,16 @@ export const GetPortalAdminResponse = zod.object({
   "rawStatus": zod.string(),
   "lastSyncAt": zod.string(),
   "rejectionReason": zod.string(),
-  "sourceTimestamp": zod.string().optional()
+  "sourceTimestamp": zod.string().optional(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "createdAt": zod.string(),
+  "fileUrl": zod.string()
+})).optional(),
+  "sapSubmissionStatus": zod.string().optional(),
+  "sapQueuedAt": zod.string().optional()
 }))
 })
 

@@ -102,6 +102,14 @@ export interface WorkOrder {
   roundCount?: number;
 }
 
+export interface RoundAttachment {
+  id: string;
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
+  fileUrl: string;
+}
+
 export interface RoundExecution {
   id: string;
   workOrderNo: string;
@@ -118,6 +126,9 @@ export interface RoundExecution {
   lastSyncAt: string;
   rejectionReason: string;
   sourceTimestamp?: string;
+  attachments?: RoundAttachment[];
+  sapSubmissionStatus?: string;
+  sapQueuedAt?: string;
 }
 
 export interface WorkOrderDetail {
@@ -170,6 +181,51 @@ export interface TemplateCatalog {
 export interface TemplateImportInput {
   filename: string;
   templates: Template[];
+}
+
+export type RoundAttachmentUploadInputContentType = typeof RoundAttachmentUploadInputContentType[keyof typeof RoundAttachmentUploadInputContentType];
+
+
+export const RoundAttachmentUploadInputContentType = {
+  'application/pdf': 'application/pdf',
+} as const;
+
+export interface RoundAttachmentUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  fileName: string;
+  /**
+     * @minimum 1
+     * @maximum 26214400
+     */
+  sizeBytes: number;
+  contentType: RoundAttachmentUploadInputContentType;
+}
+
+export interface RoundAttachmentUploadUrl {
+  id: string;
+  uploadUrl: string;
+}
+
+export type SapSubmissionQueueResultStatus = typeof SapSubmissionQueueResultStatus[keyof typeof SapSubmissionQueueResultStatus];
+
+
+export const SapSubmissionQueueResultStatus = {
+  Queued: 'Queued',
+} as const;
+
+export interface SapSubmissionQueueResult {
+  id: string;
+  roundId: string;
+  workOrderNo: string;
+  executionStatus: string;
+  approvalStatus: string;
+  status: SapSubmissionQueueResultStatus;
+  queuedAt: string;
+  alreadyQueued: boolean;
+  note: string;
 }
 
 export interface RoundImportRecord {

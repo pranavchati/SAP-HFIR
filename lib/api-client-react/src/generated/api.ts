@@ -35,8 +35,12 @@ import type {
   PortalSettings,
   PortalSettingsInput,
   PortalUser,
+  RoundAttachment,
+  RoundAttachmentUploadInput,
+  RoundAttachmentUploadUrl,
   RoundExecution,
   RoundImportInput,
+  SapSubmissionQueueResult,
   TemplateCatalog,
   TemplateImportInput,
   UserRoleInput,
@@ -1174,6 +1178,404 @@ export function useListRounds<TData = Awaited<ReturnType<typeof listRounds>>, TE
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListRoundsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRequestRoundAttachmentUploadUrlUrl = (roundId: string,) => {
+
+
+
+
+  return `/api/portal/rounds/${roundId}/attachments/upload-url`
+}
+
+/**
+ * @summary Request a private PDF upload URL for an eligible HFIR round
+ */
+export const requestRoundAttachmentUploadUrl = async (roundId: string,
+    roundAttachmentUploadInput: RoundAttachmentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<RoundAttachmentUploadUrl> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RoundAttachmentUploadUrl>(getRequestRoundAttachmentUploadUrlUrl(roundId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roundAttachmentUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestRoundAttachmentUploadUrlMutationKey = () => ['requestRoundAttachmentUploadUrl'] as const;
+
+export const getRequestRoundAttachmentUploadUrlMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>, TError,RequestRoundAttachmentUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>, TError,RequestRoundAttachmentUploadUrlMutationVariables, TContext> => {
+
+const mutationKey = getRequestRoundAttachmentUploadUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>, RequestRoundAttachmentUploadUrlMutationVariables> = (props) => {
+          const {roundId,data} = props ?? {};
+
+          return  requestRoundAttachmentUploadUrl(roundId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestRoundAttachmentUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>>
+    export type RequestRoundAttachmentUploadUrlMutationBody = BodyType<RoundAttachmentUploadInput>
+    export type RequestRoundAttachmentUploadUrlMutationError = ErrorType<unknown>
+    export type RequestRoundAttachmentUploadUrlMutationVariables = {roundId: string;data: BodyType<RoundAttachmentUploadInput>}
+
+    /**
+ * @summary Request a private PDF upload URL for an eligible HFIR round
+ */
+export const useRequestRoundAttachmentUploadUrl = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>, TError,RequestRoundAttachmentUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestRoundAttachmentUploadUrl>>,
+        TError,
+        RequestRoundAttachmentUploadUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestRoundAttachmentUploadUrlMutationOptions(options));
+    }
+
+export const getCompleteRoundAttachmentUploadUrl = (roundId: string,
+    attachmentId: string,) => {
+
+
+
+
+  return `/api/portal/rounds/${roundId}/attachments/${attachmentId}/complete`
+}
+
+/**
+ * @summary Confirm a completed PDF upload
+ */
+export const completeRoundAttachmentUpload = async (roundId: string,
+    attachmentId: string, options?: Parameters<typeof customFetch>[1]): Promise<RoundAttachment> => {
+
+  return customFetch<RoundAttachment>(getCompleteRoundAttachmentUploadUrl(roundId,attachmentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteRoundAttachmentUploadMutationKey = () => ['completeRoundAttachmentUpload'] as const;
+
+export const getCompleteRoundAttachmentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRoundAttachmentUpload>>, TError,CompleteRoundAttachmentUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeRoundAttachmentUpload>>, TError,CompleteRoundAttachmentUploadMutationVariables, TContext> => {
+
+const mutationKey = getCompleteRoundAttachmentUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeRoundAttachmentUpload>>, CompleteRoundAttachmentUploadMutationVariables> = (props) => {
+          const {roundId,attachmentId} = props ?? {};
+
+          return  completeRoundAttachmentUpload(roundId,attachmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteRoundAttachmentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeRoundAttachmentUpload>>>
+
+    export type CompleteRoundAttachmentUploadMutationError = ErrorType<unknown>
+    export type CompleteRoundAttachmentUploadMutationVariables = {roundId: string;attachmentId: string}
+
+    /**
+ * @summary Confirm a completed PDF upload
+ */
+export const useCompleteRoundAttachmentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRoundAttachmentUpload>>, TError,CompleteRoundAttachmentUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeRoundAttachmentUpload>>,
+        TError,
+        CompleteRoundAttachmentUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteRoundAttachmentUploadMutationOptions(options));
+    }
+
+export const getDownloadRoundAttachmentFileUrl = (roundId: string,
+    attachmentId: string,) => {
+
+
+
+
+  return `/api/portal/rounds/${roundId}/attachments/${attachmentId}/file`
+}
+
+/**
+ * @summary Download a private round attachment
+ */
+export const downloadRoundAttachmentFile = async (roundId: string,
+    attachmentId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadRoundAttachmentFileUrl(roundId,attachmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadRoundAttachmentFileQueryKey = (roundId: string,
+    attachmentId: string,) => {
+    return [
+    `/api/portal/rounds/${roundId}/attachments/${attachmentId}/file`
+    ] as const;
+    }
+
+
+export const getDownloadRoundAttachmentFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadRoundAttachmentFile>>, TError = ErrorType<unknown>>(roundId: string,
+    attachmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadRoundAttachmentFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadRoundAttachmentFileQueryKey(roundId,attachmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadRoundAttachmentFile>>> = ({ signal }) => downloadRoundAttachmentFile(roundId,attachmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: roundId !== null && roundId !== undefined && attachmentId !== null && attachmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadRoundAttachmentFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadRoundAttachmentFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadRoundAttachmentFile>>>
+export type DownloadRoundAttachmentFileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a private round attachment
+ */
+
+export function useDownloadRoundAttachmentFile<TData = Awaited<ReturnType<typeof downloadRoundAttachmentFile>>, TError = ErrorType<unknown>>(
+ roundId: string,
+    attachmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadRoundAttachmentFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadRoundAttachmentFileQueryOptions(roundId,attachmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getQueueRoundStatusForSapUrl = (roundId: string,) => {
+
+
+
+
+  return `/api/portal/rounds/${roundId}/sap-submission`
+}
+
+/**
+ * @summary Queue an HFIR status snapshot for later SAP submission
+ */
+export const queueRoundStatusForSap = async (roundId: string, options?: Parameters<typeof customFetch>[1]): Promise<SapSubmissionQueueResult> => {
+
+  return customFetch<SapSubmissionQueueResult>(getQueueRoundStatusForSapUrl(roundId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getQueueRoundStatusForSapMutationKey = () => ['queueRoundStatusForSap'] as const;
+
+export const getQueueRoundStatusForSapMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueRoundStatusForSap>>, TError,QueueRoundStatusForSapMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof queueRoundStatusForSap>>, TError,QueueRoundStatusForSapMutationVariables, TContext> => {
+
+const mutationKey = getQueueRoundStatusForSapMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof queueRoundStatusForSap>>, QueueRoundStatusForSapMutationVariables> = (props) => {
+          const {roundId} = props ?? {};
+
+          return  queueRoundStatusForSap(roundId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QueueRoundStatusForSapMutationResult = NonNullable<Awaited<ReturnType<typeof queueRoundStatusForSap>>>
+
+    export type QueueRoundStatusForSapMutationError = ErrorType<unknown>
+    export type QueueRoundStatusForSapMutationVariables = {roundId: string}
+
+    /**
+ * @summary Queue an HFIR status snapshot for later SAP submission
+ */
+export const useQueueRoundStatusForSap = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueRoundStatusForSap>>, TError,QueueRoundStatusForSapMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof queueRoundStatusForSap>>,
+        TError,
+        QueueRoundStatusForSapMutationVariables,
+        TContext
+      > => {
+      return useMutation(getQueueRoundStatusForSapMutationOptions(options));
+    }
+
+export const getGetPublicStorageObjectUrl = (filePath: string,) => {
+
+
+
+
+  return `/api/storage/public-objects/${filePath}`
+}
+
+/**
+ * @summary Serve a public object from configured public storage paths
+ */
+export const getPublicStorageObject = async (filePath: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetPublicStorageObjectUrl(filePath),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicStorageObjectQueryKey = (filePath: string,) => {
+    return [
+    `/api/storage/public-objects/${filePath}`
+    ] as const;
+    }
+
+
+export const getGetPublicStorageObjectQueryOptions = <TData = Awaited<ReturnType<typeof getPublicStorageObject>>, TError = ErrorType<unknown>>(filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicStorageObjectQueryKey(filePath);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicStorageObject>>> = ({ signal }) => getPublicStorageObject(filePath, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: filePath !== null && filePath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicStorageObject>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicStorageObjectQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicStorageObject>>>
+export type GetPublicStorageObjectQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Serve a public object from configured public storage paths
+ */
+
+export function useGetPublicStorageObject<TData = Awaited<ReturnType<typeof getPublicStorageObject>>, TError = ErrorType<unknown>>(
+ filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicStorageObjectQueryOptions(filePath,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

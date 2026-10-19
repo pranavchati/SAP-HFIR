@@ -20,9 +20,10 @@ import {
   useImportWorkOrders, useListAssignments, useListNotifications, useListRounds,
   useListTemplates, useListTransactionHistory, useListWorkOrders, useMarkNotificationRead,
   useSaveWorkOrderMapping, useUpdatePortalSettings, useUpdatePortalUserRole,
-  useGetWorkOrder,
+  useGetWorkOrder, useCompleteRoundAttachmentUpload, useQueueRoundStatusForSap,
+  useRequestRoundAttachmentUploadUrl,
 } from '@workspace/api-client-react';
-import type { HistoryEntry, PortalUserRole, RoundExecution, RoundImportRecord, WorkOrder } from '@workspace/api-client-react';
+import type { HistoryEntry, PortalUserRole, RoundAttachment, RoundExecution, RoundImportRecord, WorkOrder } from '@workspace/api-client-react';
 import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -416,27 +417,72 @@ function Rounds() {
   const q=useListRounds({query:{queryKey:getListRoundsQueryKey(),enabled:me.isSuccess,refetchOnMount:'always'},request:{cache:'no-store'}}); const admin=useGetPortalAdmin({query:{queryKey:getGetPortalAdminQueryKey(),enabled:me.data?.user?.role==='Administrator'}});
   const rounds=q.data??[]; const unmatched=admin.data?.unmatched??[];
   return <div className="page-enter"><Heading eyebrow="HFIR result reconciliation" title="Round executions" description="Imported HFIR execution data only. This portal has no schedule, execute or approve controls." action={me.data?.user?.role==='Administrator'?<ImportRoundsButton/>:undefined}/>
-    <Card className="mb-5"><div className="flex items-start gap-3 border-l-2 border-[#de965f] bg-secondary/45 p-4 text-[11px] leading-relaxed"><CircleHelp size={15} className="mt-0.5 shrink-0 text-primary"/><span>Round status is kept separate from mapping status. No-result is shown as <b>Awaiting HFIR data</b>; unfamiliar vendor values are shown as <b>Unknown</b>.</span></div></Card>
+    <Card className="mb-5"><div className="flex items-start gap-3 border-l-2 border-[#de965f] bg-secondary/45 p-4 text-[11px] leading-relaxed"><CircleHelp size={15} className="mt-0.5 shrink-0 text-primary"/><span>Round status is kept separate from mapping status. No-result is shown as <b>Awaiting HFIR data</b>; unfamiliar vendor values are shown as <b>Unknown</b>. PDF attachments are available only for rounds that are <b>Approved</b> or <b>Successful</b>. “Submit to SAP” queues the status in this portal only; it does not send data to SAP.</span></div></Card>
      {(!me.data?.user || me.data.user.role==='Operator')&&<div className="mb-5 border border-[#d8d2c7] bg-[#f3f0e8] px-4 py-3 text-[10px] leading-relaxed text-muted-foreground" data-testid="notice-shared-demo-rounds"><span className="font-semibold text-foreground">Shared demo results:</span> Sample HFIR round records are shown for preview. Any non-demo rounds remain limited to your operator assignments.</div>}
     {q.isLoading?<Card><State mode="loading"/></Card>:q.isError?<Card><State mode="error" retry={()=>q.refetch()}/></Card>:!rounds.length&&!unmatched.length?<Card><div className="p-2"><State mode="empty"/></div><div className="border-t border-border px-5 py-4 text-center text-xs font-semibold text-muted-foreground">Awaiting HFIR data</div></Card>:<div className="space-y-5">
-      {!!unmatched.length&&<Card><div className="flex items-center gap-2 border-b border-border p-4"><TriangleAlert size={16} className="text-[#b04d40]"/><h2 className="font-display font-bold">Unmatched HFIR rounds</h2><span className="badge-amber">{unmatched.length}</span></div><RoundTableHeader/><div className="divide-y divide-border">{unmatched.map(r=><RoundRow key={r.id} round={r} unmatched/>)}</div></Card>}
-      <Card><div className="flex items-center justify-between border-b border-border p-4"><h2 className="font-display font-bold">Linked execution records</h2><span className="text-[10px] text-muted-foreground">{rounds.length} imported records</span></div>{rounds.length?<><RoundTableHeader/><div className="divide-y divide-border">{rounds.map(r=><RoundRow key={r.id} round={r}/>)}</div></>:<State mode="empty"/>}</Card>
+       {!!unmatched.length&&<Card><div className="flex items-center gap-2 border-b border-border p-4"><TriangleAlert size={16} className="text-[#b04d40]"/><h2 className="font-display font-bold">Unmatched HFIR rounds</h2><span className="badge-amber">{unmatched.length}</span></div><div className="overflow-x-auto"><div className="md:min-w-[1160px]"><RoundTableHeader/><div className="divide-y divide-border">{unmatched.map(r=><RoundRow key={r.id} round={r} unmatched/>)}</div></div></div></Card>}
+       <Card><div className="flex items-center justify-between border-b border-border p-4"><h2 className="font-display font-bold">Linked execution records</h2><span className="text-[10px] text-muted-foreground">{rounds.length} imported records</span></div>{rounds.length?<div className="overflow-x-auto"><div className="md:min-w-[1160px]"><RoundTableHeader/><div className="divide-y divide-border">{rounds.map(r=><RoundRow key={r.id} round={r}/>)}</div></div></div>:<State mode="empty"/>}</Card>
     </div>}
   </div>;
 }
 function RoundRow({round:r,unmatched=false}:{round:RoundExecution;unmatched?:boolean}) {
   const status=statusValue(r.executionStatus);
-  return <div data-testid={`row-round-${r.id}`} className="grid gap-3 px-5 py-4 md:grid-cols-[.9fr_1.1fr_1fr_1.15fr_.9fr] md:items-start">
+  const qc=useQueryClient();
+  const uploadUrl=useRequestRoundAttachmentUploadUrl();
+  const completeUpload=useCompleteRoundAttachmentUpload();
+  const queueStatus=useQueueRoundStatusForSap();
+  const [attachmentError,setAttachmentError]=useState('');
+  const [queueError,setQueueError]=useState('');
+  const attachments=r.attachments??[];
+  const attachmentEligible=r.approvalStatus.toLowerCase()==='approved'||r.executionStatus.toLowerCase()==='successful';
+  const refreshRoundViews=async()=>Promise.all([
+    qc.invalidateQueries({queryKey:getListRoundsQueryKey()}),
+    qc.invalidateQueries({queryKey:getListTransactionHistoryQueryKey()}),
+    qc.invalidateQueries({queryKey:getGetPortalDashboardQueryKey()}),
+  ]);
+  const handlePdfChange=async(event:ChangeEvent<HTMLInputElement>)=>{
+    const input=event.currentTarget;
+    const file=input.files?.[0];
+    input.value='';
+    if(!file)return;
+    setAttachmentError('');
+    if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>25*1024*1024){
+      setAttachmentError('Choose a PDF file no larger than 25 MB.');
+      return;
+    }
+    try{
+      const signed=await uploadUrl.mutateAsync({roundId:r.id,data:{fileName:file.name,sizeBytes:file.size,contentType:'application/pdf'}});
+      const response=await fetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':'application/pdf'},body:file,cache:'no-store'});
+      if(!response.ok)throw new Error('PDF upload failed.');
+      await completeUpload.mutateAsync({roundId:r.id,attachmentId:signed.id});
+      await refreshRoundViews();
+    }catch{
+      setAttachmentError('Could not upload this PDF. Check the file and try again.');
+    }
+  };
+  const handleQueueStatus=async()=>{
+    setQueueError('');
+    try{
+      await queueStatus.mutateAsync({roundId:r.id});
+      await refreshRoundViews();
+    }catch{
+      setQueueError('Could not queue this status. Try again.');
+    }
+  };
+  const attachmentBusy=uploadUrl.isPending||completeUpload.isPending;
+  return <div data-testid={`row-round-${r.id}`} className="grid gap-3 px-5 py-4 md:grid-cols-[.85fr_1.05fr_.9fr_1fr_.85fr_1fr_1fr] md:items-start">
     <div data-testid={`cell-sap-work-order-${r.id}`}><div className="field-caption">SAP work order number</div><div className="mt-1 font-mono text-[11px] font-medium">{r.workOrderNo||'—'}</div>{unmatched&&<span className="mt-1 inline-flex badge-amber">Unmatched</span>}</div>
     <div><div className="field-caption">HFIR template / operator</div><div className="mt-1 text-xs font-semibold">{r.templateName||'Unknown template'}</div><div className="mt-1 font-mono text-[9px] text-muted-foreground">{r.templateId}</div><div className="mt-1 text-[10px] text-muted-foreground">{r.operatorName||'—'}</div></div>
     <div><div className="field-caption">Execution / approval</div><div className="mt-1 flex flex-wrap gap-1.5"><span className={status==='Unknown'?'badge-amber':'badge-neutral'}>{status}</span><span className="badge-neutral">{statusValue(r.approvalStatus)}</span></div></div>
     <div><div className="field-caption">Scheduled / due / completed</div><div className="mt-1 text-[10px]">{fmtDate(r.scheduledDate)} / {fmtDate(r.dueDate)} / {fmtDate(r.completedAt)}</div></div>
     <div><div className="field-caption">Overdue / source status</div><div className="mt-1 text-[10px]">{r.overdue||'Unknown'}</div><div className="mt-1 text-[9px]">Raw: <span className="font-mono">{r.rawStatus||'Unknown'}</span></div><div className="mt-1 text-[9px] text-muted-foreground">Last sync {new Date(r.lastSyncAt).toLocaleString()}</div>{r.rejectionReason&&<div className="mt-1 text-[9px] text-destructive">{r.rejectionReason}</div>}</div>
+    <div data-testid={`cell-round-attachment-${r.id}`}><div className="field-caption">Attachment</div>{attachmentEligible?<><div className="mt-1 space-y-1">{attachments.map((file:RoundAttachment)=><a key={file.id} className="block break-all text-[10px] font-semibold text-primary underline" href={file.fileUrl} data-testid={`link-round-attachment-${file.id}`}>{file.fileName}</a>)}</div><label className={`btn-secondary mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[9px] ${attachmentBusy?'pointer-events-none opacity-60':''}`}><FileUp size={12}/>{attachmentBusy?'Uploading…':'Upload PDF'}<input className="sr-only" type="file" accept="application/pdf,.pdf" disabled={attachmentBusy} onChange={event=>void handlePdfChange(event)} data-testid={`input-round-attachment-${r.id}`}/></label>{attachmentError&&<div className="mt-1 text-[9px] text-destructive">{attachmentError}</div>}</>:<div className="mt-1 text-[9px] text-muted-foreground">Available after approval or success</div>}</div>
+    <div data-testid={`cell-round-sap-submit-${r.id}`}><div className="field-caption">Submit to SAP</div>{r.sapSubmissionStatus==='Queued'?<><span className="mt-1 inline-flex badge-amber">Queued</span><div className="mt-1 text-[9px] leading-relaxed text-muted-foreground">Portal only; not sent to SAP.</div>{r.sapQueuedAt&&<div className="mt-1 text-[9px] text-muted-foreground">{new Date(r.sapQueuedAt).toLocaleString()}</div>}</>:<button type="button" className="btn-secondary mt-1 text-[9px]" disabled={!r.workOrderNo||queueStatus.isPending} onClick={()=>void handleQueueStatus()} data-testid={`button-submit-round-${r.id}`}>{queueStatus.isPending?'Queueing…':'Submit to SAP'}</button>}{!r.workOrderNo&&<div className="mt-1 text-[9px] text-muted-foreground">No matched SAP work order</div>}{queueError&&<div className="mt-1 text-[9px] text-destructive">{queueError}</div>}</div>
   </div>;
 }
 function RoundTableHeader() {
-  return <div className="hidden grid-cols-[.9fr_1.1fr_1fr_1.15fr_.9fr] gap-3 border-b border-border bg-secondary/40 px-5 py-2 text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground md:grid">
-    <div>SAP work order number</div><div>HFIR template / operator</div><div>Execution / approval</div><div>Scheduled / due / completed</div><div>Overdue / source status</div>
+  return <div className="hidden grid-cols-[.85fr_1.05fr_.9fr_1fr_.85fr_1fr_1fr] gap-3 border-b border-border bg-secondary/40 px-5 py-2 text-[9px] font-bold uppercase tracking-[.1em] text-muted-foreground md:grid">
+    <div>SAP work order number</div><div>HFIR template / operator</div><div>Execution / approval</div><div>Scheduled / due / completed</div><div>Overdue / source status</div><div>Attachment</div><div>Submit to SAP</div>
   </div>;
 }
 function ImportRoundsButton() {

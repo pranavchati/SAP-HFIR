@@ -220,6 +220,103 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/RoundExecution" }
+  /portal/rounds/{roundId}/attachments/upload-url:
+    post:
+      operationId: requestRoundAttachmentUploadUrl
+      tags: [portal]
+      summary: Request a private PDF upload URL for an eligible HFIR round
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoundAttachmentUploadInput"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundAttachmentUploadUrl"
+  /portal/rounds/{roundId}/attachments/{attachmentId}/complete:
+    post:
+      operationId: completeRoundAttachmentUpload
+      tags: [portal]
+      summary: Confirm a completed PDF upload
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Saved round attachment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundAttachment"
+  /portal/rounds/{roundId}/attachments/{attachmentId}/file:
+    get:
+      operationId: downloadRoundAttachmentFile
+      tags: [portal]
+      summary: Download a private round attachment
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF attachment
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  /portal/rounds/{roundId}/sap-submission:
+    post:
+      operationId: queueRoundStatusForSap
+      tags: [portal]
+      summary: Queue an HFIR status snapshot for later SAP submission
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Portal queue result; no SAP transmission is performed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SapSubmissionQueueResult"
+  /storage/public-objects/{filePath}:
+    get:
+      operationId: getPublicStorageObject
+      tags: [storage]
+      summary: Serve a public object from configured public storage paths
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Public object content
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
   /portal/imports/hfir-results:
     post:
       operationId: importHfirResults
@@ -506,6 +603,46 @@ components:
         lastSyncAt: { type: string }
         rejectionReason: { type: string }
         sourceTimestamp: { type: string }
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/RoundAttachment" }
+        sapSubmissionStatus: { type: string }
+        sapQueuedAt: { type: string }
+    RoundAttachment:
+      type: object
+      required: [id, fileName, sizeBytes, createdAt, fileUrl]
+      properties:
+        id: { type: string }
+        fileName: { type: string }
+        sizeBytes: { type: integer }
+        createdAt: { type: string }
+        fileUrl: { type: string }
+    RoundAttachmentUploadInput:
+      type: object
+      required: [fileName, sizeBytes, contentType]
+      properties:
+        fileName: { type: string, minLength: 1, maxLength: 180 }
+        sizeBytes: { type: integer, minimum: 1, maximum: 26214400 }
+        contentType: { type: string, enum: [application/pdf] }
+    RoundAttachmentUploadUrl:
+      type: object
+      required: [id, uploadUrl]
+      properties:
+        id: { type: string }
+        uploadUrl: { type: string }
+    SapSubmissionQueueResult:
+      type: object
+      required: [id, roundId, workOrderNo, executionStatus, approvalStatus, status, queuedAt, alreadyQueued, note]
+      properties:
+        id: { type: string }
+        roundId: { type: string }
+        workOrderNo: { type: string }
+        executionStatus: { type: string }
+        approvalStatus: { type: string }
+        status: { type: string, enum: [Queued] }
+        queuedAt: { type: string }
+        alreadyQueued: { type: boolean }
+        note: { type: string }
     RoundImportInput:
       type: object
       required: [filename, rounds]

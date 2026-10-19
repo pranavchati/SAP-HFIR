@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
 import { and, count, desc, eq, isNull, notLike, or, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   hfirRoundExecutions,
+  hfirRoundAttachments,
+  hfirSapSubmissionQueue,
   hfirTemplates,
   importBatches,
   mappingRevisions,
@@ -18,6 +21,9 @@ import {
 } from "@workspace/db";
 import {
   BootstrapPortalAdminResponse,
+  CompleteRoundAttachmentUploadParams,
+  CompleteRoundAttachmentUploadResponse,
+  DownloadRoundAttachmentFileParams,
   ExportTransactionHistoryQueryParams,
   GetPortalAdminResponse,
   GetPortalDashboardResponse,
@@ -43,6 +49,11 @@ import {
   SaveWorkOrderMappingBody,
   SaveWorkOrderMappingParams,
   SaveWorkOrderMappingResponse,
+  RequestRoundAttachmentUploadUrlBody,
+  RequestRoundAttachmentUploadUrlParams,
+  RequestRoundAttachmentUploadUrlResponse,
+  QueueRoundStatusForSapParams,
+  QueueRoundStatusForSapResponse,
   UpdatePortalSettingsBody,
   UpdatePortalSettingsResponse,
   UpdatePortalUserRoleBody,
@@ -52,8 +63,11 @@ import {
 import { seedInspectionPortal } from "../lib/inspectionPortalSeed";
 import { hfirResultsAdapter } from "../lib/integrations/hfirResultsAdapter";
 import { sapWorkOrderAdapter, type SapWorkOrderImportRow } from "../lib/integrations/sapXmlAdapter";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
+const MAX_ROUND_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const bootstrapLockKey = 710441;
 const ALLOWED_ROLES = ["Administrator", "Planner/Coordinator", "Operator"] as const;
 let seedPromise: Promise<void> | undefined;
@@ -170,7 +184,14 @@ function workOrderShape(row: Awaited<ReturnType<typeof getWorkOrderRows>>[number
   };
 }
 
-function roundShape(round: typeof hfirRoundExecutions.$inferSelect) {
+function roundShape(
+  round: typeof hfirRoundExecutions.$inferSelect,
+  extras: {
+    attachments?: ReturnType<typeof roundAttachmentShape>[];
+    sapSubmissionStatus?: string;
+    sapQueuedAt?: string;
+  } = {},
+) {
   return {
     id: round.id,
     workOrderNo: round.workOrderNo ?? "",
@@ -187,7 +208,49 @@ function roundShape(round: typeof hfirRoundExecutions.$inferSelect) {
     lastSyncAt: round.lastSyncAt.toISOString(),
     sourceTimestamp: dateString(round.sourceTimestamp),
     rejectionReason: round.rejectionReason,
+    ...extras,
   };
+}
+
+function roundAttachmentShape(attachment: typeof hfirRoundAttachments.$inferSelect) {
+  return {
+    id: attachment.id,
+    fileName: attachment.fileName,
+    sizeBytes: attachment.sizeBytes,
+    createdAt: attachment.createdAt.toISOString(),
+    fileUrl: `/api/portal/rounds/${encodeURIComponent(attachment.roundId)}/attachments/${encodeURIComponent(attachment.id)}/file`,
+  };
+}
+
+function isSharedDemoRound(round: typeof hfirRoundExecutions.$inferSelect): boolean {
+  const payload = round.payload;
+  return !!payload
+    && typeof payload === "object"
+    && !Array.isArray(payload)
+    && (payload as Record<string, unknown>).sample === true;
+}
+
+async function getVisibleRound(roundId: string, userId: string) {
+  const [round] = await db.select().from(hfirRoundExecutions).where(eq(hfirRoundExecutions.id, roundId)).limit(1);
+  if (!round) return null;
+  const [user] = await db.select().from(portalUsers).where(eq(portalUsers.id, userId)).limit(1);
+  const canSeeAllRounds = user?.role === "Administrator" || user?.role === "Planner/Coordinator";
+  if (canSeeAllRounds || isSharedDemoRound(round) || (user?.role === "Operator" && round.operatorId === userId)) {
+    return round;
+  }
+  return null;
+}
+
+function isAttachmentEligible(round: typeof hfirRoundExecutions.$inferSelect): boolean {
+  return round.approvalStatus.toLowerCase() === "approved"
+    || round.executionStatus.toLowerCase() === "successful";
+}
+
+function safePdfFileName(fileName: string): string {
+  return fileName
+    .replace(/[\\/\\0-\\x1f\\x7f]/g, "_")
+    .trim()
+    .slice(0, 180);
 }
 
 function notificationShape(row: typeof portalNotifications.$inferSelect) {
@@ -393,7 +456,7 @@ router.get("/work-orders/:workOrderNo", requireRole("Administrator", "Planner/Co
   res.json(GetWorkOrderResponse.parse({
     workOrder: workOrderShape(row, rounds.length),
     history: history.map(historyShape),
-    rounds: rounds.map(roundShape),
+    rounds: rounds.map((round) => roundShape(round)),
   }));
 });
 
@@ -730,18 +793,240 @@ router.post("/notifications/:notificationId/read", async (req, res): Promise<voi
 
 router.get("/rounds", async (req, res): Promise<void> => {
   const userId = currentUserId(req);
-  const [user] = await db.select().from(portalUsers).where(eq(portalUsers.id, userId)).limit(1);
-  const rounds = await db.select().from(hfirRoundExecutions).orderBy(desc(hfirRoundExecutions.lastSyncAt));
+  const [[user], rounds, attachmentRows, queueRows] = await Promise.all([
+    db.select().from(portalUsers).where(eq(portalUsers.id, userId)).limit(1),
+    db.select().from(hfirRoundExecutions).orderBy(desc(hfirRoundExecutions.lastSyncAt)),
+    db.select().from(hfirRoundAttachments).where(eq(hfirRoundAttachments.status, "Ready")).orderBy(desc(hfirRoundAttachments.createdAt)),
+    db.select().from(hfirSapSubmissionQueue),
+  ]);
   const canSeeAllRounds = user?.role === "Administrator" || user?.role === "Planner/Coordinator";
-  const visible = canSeeAllRounds ? rounds : rounds.filter((round) => {
-    const payload = round.payload;
-    const isSharedDemoRound = !!payload
-      && typeof payload === "object"
-      && !Array.isArray(payload)
-      && (payload as Record<string, unknown>).sample === true;
-    return isSharedDemoRound || (user?.role === "Operator" && round.operatorId === userId);
-  });
-  res.json(ListRoundsResponse.parse(visible.map(roundShape)));
+  const visible = canSeeAllRounds ? rounds : rounds.filter((round) => (
+    isSharedDemoRound(round) || (user?.role === "Operator" && round.operatorId === userId)
+  ));
+  const attachmentsByRound = new Map<string, typeof attachmentRows>();
+  for (const attachment of attachmentRows) {
+    const existing = attachmentsByRound.get(attachment.roundId) ?? [];
+    existing.push(attachment);
+    attachmentsByRound.set(attachment.roundId, existing);
+  }
+  const queueByRound = new Map(queueRows.map((entry) => [entry.roundId, entry]));
+  res.json(ListRoundsResponse.parse(visible.map((round) => {
+    const queueEntry = queueByRound.get(round.id);
+    return roundShape(round, {
+      attachments: (attachmentsByRound.get(round.id) ?? []).map(roundAttachmentShape),
+      sapSubmissionStatus: queueEntry?.queueStatus,
+      sapQueuedAt: queueEntry?.queuedAt.toISOString(),
+    });
+  })));
+});
+
+router.post("/rounds/:roundId/attachments/upload-url", async (req, res): Promise<void> => {
+  const params = RequestRoundAttachmentUploadUrlParams.safeParse(req.params);
+  const body = RequestRoundAttachmentUploadUrlBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message ?? "Invalid PDF upload request." });
+    return;
+  }
+  const userId = currentUserId(req);
+  const round = await getVisibleRound(params.data.roundId, userId);
+  if (!round) {
+    res.status(404).json({ error: "HFIR round not found." });
+    return;
+  }
+  if (!isAttachmentEligible(round)) {
+    res.status(409).json({ error: "PDF attachments are available only for approved or successful rounds." });
+    return;
+  }
+  const fileName = safePdfFileName(body.data.fileName);
+  if (!fileName || !/\.pdf$/i.test(fileName) || body.data.contentType !== "application/pdf" || body.data.sizeBytes > MAX_ROUND_ATTACHMENT_BYTES) {
+    res.status(400).json({ error: "Upload a PDF file no larger than 25 MB." });
+    return;
+  }
+  try {
+    const uploadUrl = await objectStorage.getObjectEntityUploadURL();
+    const objectPath = objectStorage.normalizeObjectEntityPath(uploadUrl);
+    const id = randomUUID();
+    await db.insert(hfirRoundAttachments).values({
+      id,
+      roundId: round.id,
+      objectPath,
+      fileName,
+      contentType: "application/pdf",
+      sizeBytes: body.data.sizeBytes,
+      status: "Uploading",
+      uploadedBy: userId,
+    });
+    res.json(RequestRoundAttachmentUploadUrlResponse.parse({ id, uploadUrl }));
+  } catch (error) {
+    req.log.error({ err: error }, "Failed to request round attachment upload URL");
+    res.status(500).json({ error: "Could not prepare the PDF upload." });
+  }
+});
+
+router.post("/rounds/:roundId/attachments/:attachmentId/complete", async (req, res): Promise<void> => {
+  const params = CompleteRoundAttachmentUploadParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = currentUserId(req);
+  const [attachment] = await db.select().from(hfirRoundAttachments)
+    .where(and(eq(hfirRoundAttachments.id, params.data.attachmentId), eq(hfirRoundAttachments.roundId, params.data.roundId)))
+    .limit(1);
+  if (!attachment || attachment.uploadedBy !== userId) {
+    res.status(404).json({ error: "Upload not found." });
+    return;
+  }
+  const round = await getVisibleRound(attachment.roundId, userId);
+  if (!round || !isAttachmentEligible(round)) {
+    res.status(404).json({ error: "HFIR round not found." });
+    return;
+  }
+  if (attachment.status === "Ready") {
+    res.json(CompleteRoundAttachmentUploadResponse.parse(roundAttachmentShape(attachment)));
+    return;
+  }
+  try {
+    const objectFile = await objectStorage.getObjectEntityFile(attachment.objectPath);
+    const [metadata] = await objectFile.getMetadata();
+    const actualSize = Number(metadata.size ?? 0);
+    if (metadata.contentType !== "application/pdf" || actualSize !== attachment.sizeBytes || actualSize > MAX_ROUND_ATTACHMENT_BYTES) {
+      res.status(400).json({ error: "The uploaded file must be a PDF matching the requested size." });
+      return;
+    }
+    const [saved] = await db.update(hfirRoundAttachments)
+      .set({ status: "Ready" })
+      .where(eq(hfirRoundAttachments.id, attachment.id))
+      .returning();
+    if (!saved) {
+      res.status(500).json({ error: "The uploaded attachment could not be saved." });
+      return;
+    }
+    if (round.workOrderNo) {
+      await recordHistory(round.workOrderNo, "HFIR attachment uploaded", `PDF ${saved.fileName} attached to HFIR round ${round.sourceRoundId}.`, userId);
+    }
+    res.json(CompleteRoundAttachmentUploadResponse.parse(roundAttachmentShape(saved)));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(409).json({ error: "The uploaded PDF was not found in storage." });
+      return;
+    }
+    req.log.error({ err: error }, "Failed to confirm round attachment upload");
+    res.status(500).json({ error: "Could not confirm the PDF upload." });
+  }
+});
+
+router.get("/rounds/:roundId/attachments/:attachmentId/file", async (req, res): Promise<void> => {
+  const params = DownloadRoundAttachmentFileParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = currentUserId(req);
+  const round = await getVisibleRound(params.data.roundId, userId);
+  const [attachment] = await db.select().from(hfirRoundAttachments)
+    .where(and(eq(hfirRoundAttachments.id, params.data.attachmentId), eq(hfirRoundAttachments.roundId, params.data.roundId), eq(hfirRoundAttachments.status, "Ready")))
+    .limit(1);
+  if (!round || !attachment) {
+    res.status(404).json({ error: "Attachment not found." });
+    return;
+  }
+  try {
+    const objectFile = await objectStorage.getObjectEntityFile(attachment.objectPath);
+    const response = await objectStorage.downloadObject(objectFile, 0);
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safePdfFileName(attachment.fileName).replace(/["\\]/g, "_")}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, no-store");
+    if (response.body) {
+      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Attachment not found." });
+      return;
+    }
+    req.log.error({ err: error }, "Failed to serve round attachment");
+    res.status(500).json({ error: "Could not download the attachment." });
+  }
+});
+
+router.post("/rounds/:roundId/sap-submission", async (req, res): Promise<void> => {
+  const params = QueueRoundStatusForSapParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const userId = currentUserId(req);
+  const round = await getVisibleRound(params.data.roundId, userId);
+  if (!round) {
+    res.status(404).json({ error: "HFIR round not found." });
+    return;
+  }
+  if (!round.workOrderNo) {
+    res.status(409).json({ error: "Cannot queue this round without a matched SAP work order." });
+    return;
+  }
+  const [existing] = await db.select().from(hfirSapSubmissionQueue)
+    .where(eq(hfirSapSubmissionQueue.roundId, round.id))
+    .limit(1);
+  let queued: typeof hfirSapSubmissionQueue.$inferSelect | undefined;
+  let alreadyQueued = false;
+  if (existing && existing.executionStatus === round.executionStatus && existing.approvalStatus === round.approvalStatus && existing.queueStatus === "Queued") {
+    queued = existing;
+    alreadyQueued = true;
+  } else if (existing) {
+    const [updated] = await db.update(hfirSapSubmissionQueue).set({
+      workOrderNo: round.workOrderNo,
+      executionStatus: round.executionStatus,
+      approvalStatus: round.approvalStatus,
+      queueStatus: "Queued",
+      queuedBy: userId,
+      queuedAt: new Date(),
+    }).where(eq(hfirSapSubmissionQueue.roundId, round.id)).returning();
+    queued = updated;
+  } else {
+    const [created] = await db.insert(hfirSapSubmissionQueue).values({
+      id: randomUUID(),
+      roundId: round.id,
+      workOrderNo: round.workOrderNo,
+      executionStatus: round.executionStatus,
+      approvalStatus: round.approvalStatus,
+      queueStatus: "Queued",
+      queuedBy: userId,
+    }).onConflictDoNothing().returning();
+    if (created) {
+      queued = created;
+    } else {
+      const [concurrent] = await db.select().from(hfirSapSubmissionQueue)
+        .where(eq(hfirSapSubmissionQueue.roundId, round.id))
+        .limit(1);
+      queued = concurrent;
+      alreadyQueued = true;
+    }
+  }
+  if (!queued) {
+    res.status(500).json({ error: "Could not queue the HFIR status." });
+    return;
+  }
+  if (!alreadyQueued) {
+    await recordHistory(round.workOrderNo, "SAP submission queued", `HFIR round ${round.sourceRoundId} status queued for SAP: execution ${round.executionStatus}; approval ${round.approvalStatus}. Not transmitted.`, userId);
+  }
+  res.json(QueueRoundStatusForSapResponse.parse({
+    id: queued.id,
+    roundId: queued.roundId,
+    workOrderNo: queued.workOrderNo,
+    executionStatus: queued.executionStatus,
+    approvalStatus: queued.approvalStatus,
+    status: queued.queueStatus,
+    queuedAt: queued.queuedAt.toISOString(),
+    alreadyQueued,
+    note: "Queued in the portal only; no data has been sent to SAP.",
+  }));
 });
 
 router.post("/imports/hfir-results", requireRole("Administrator"), async (req, res): Promise<void> => {
@@ -916,7 +1201,7 @@ router.get("/admin", requireRole("Administrator"), async (_req, res): Promise<vo
     users: users.filter((user) => !user.id.startsWith("demo-")).map(portalUserShape),
     templates: templates.map((template) => ({ id: template.id, name: template.name, active: template.active, source: template.source })),
     settings,
-    unmatched: unmatchedRows.map(roundShape),
+    unmatched: unmatchedRows.map((round) => roundShape(round)),
   }));
 });
 

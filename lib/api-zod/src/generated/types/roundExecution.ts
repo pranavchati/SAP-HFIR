@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { RoundAttachment } from './roundAttachment';
 
 export interface RoundExecution {
   id: string;
@@ -22,4 +23,7 @@ export interface RoundExecution {
   lastSyncAt: string;
   rejectionReason: string;
   sourceTimestamp?: string;
+  attachments?: RoundAttachment[];
+  sapSubmissionStatus?: string;
+  sapQueuedAt?: string;
 }
