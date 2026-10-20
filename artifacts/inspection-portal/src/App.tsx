@@ -75,7 +75,7 @@ const clerkAppearance = {
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
-  { href: '/mapping', label: 'Mapping', icon: Link2, roles: ['Administrator', 'Planner/Coordinator'] },
+  { href: '/mapping', label: 'Mapping', icon: Link2, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/assignments', label: 'Assignments', icon: UsersRound, roles: ['Operator'] },
   { href: '/rounds', label: 'HFIR rounds', icon: Activity, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/history', label: 'Handoff history', icon: FileClock, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
@@ -625,7 +625,7 @@ function Router() {
       <Route path="/sign-in/*?" component={SignInPage}/>
       <Route path="/sign-up/*?" component={SignUpPage}/>
       <Route path="/dashboard"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><Dashboard/></PortalPage></Route>
-      <Route path="/mapping"><PortalPage roles={['Administrator','Planner/Coordinator']}><MappingPage/></PortalPage></Route>
+      <Route path="/mapping"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><MappingPage/></PortalPage></Route>
       <Route path="/import"><PortalPage roles={['Administrator','Planner/Coordinator']}><ImportPage/></PortalPage></Route>
       <Route path="/work-orders"><PortalPage roles={['Administrator','Planner/Coordinator']}><WorkOrders/></PortalPage></Route>
       <Route path="/samples"><PortalPage roles={['Administrator','Planner/Coordinator']}><SampleWorkOrders/></PortalPage></Route>

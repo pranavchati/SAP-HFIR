@@ -125,6 +125,36 @@ const workOrders = [
     plannedStartDate: "2026-10-21",
     dueDate: "2026-10-29",
   },
+  {
+    workOrderNo: "0000999101",
+    description: "Inspect emergency generator fuel and starting system",
+    asset: "EG-0310",
+    functionalLocation: "PLANT-A/UTILITIES/GEN-310",
+    plant: "Riyadh Utilities",
+    priority: "High",
+    plannedStartDate: "2026-10-22",
+    dueDate: "2026-10-28",
+  },
+  {
+    workOrderNo: "0000999102",
+    description: "Check service water pump condition",
+    asset: "SWP-0812",
+    functionalLocation: "PLANT-B/PROCESS/PUMP-812",
+    plant: "Jubail Process",
+    priority: "Medium",
+    plannedStartDate: "2026-10-23",
+    dueDate: "2026-10-30",
+  },
+  {
+    workOrderNo: "0000999103",
+    description: "Verify firewater valve and indicator operation",
+    asset: "FWV-0421",
+    functionalLocation: "PLANT-C/SAFETY/VALVE-421",
+    plant: "Yanbu Refining",
+    priority: "High",
+    plannedStartDate: "2026-10-24",
+    dueDate: "2026-10-31",
+  },
 ];
 
 const demoRounds = [

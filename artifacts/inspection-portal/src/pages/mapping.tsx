@@ -115,7 +115,7 @@ export default function MappingPage() {
             <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5 p-5">
               {!availableWorkOrders.length && (
                 <div className="rounded-md border border-[#d8d2c7] bg-[#f3f0e8] px-4 py-3 text-[11px] leading-relaxed text-muted-foreground" data-testid="mapping-no-orders">
-                  All imported work orders already have a submitted mapping. Use <span className="font-semibold text-foreground">Imported work orders</span> to review or revise an existing handoff.
+                  All work orders visible to your role already have a submitted mapping. Ask an administrator or planner to revise an existing handoff.
                 </div>
               )}
               {!activeTemplates.length && (
@@ -185,7 +185,7 @@ export default function MappingPage() {
               {errorMessage && <div className="text-xs text-destructive" role="alert" data-testid="mapping-error">{errorMessage}</div>}
 
               <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-[10px] text-muted-foreground">Submitted mappings are available in Imported work orders.</span>
+                <span className="text-[10px] text-muted-foreground">Admins and planners can revise submitted mappings from Imported work orders.</span>
                 <button
                   className="btn-primary inline-flex items-center justify-center gap-2"
                   type="submit"
@@ -211,7 +211,7 @@ export default function MappingPage() {
           </div>
           <div className="rounded-lg border border-border bg-secondary/35 p-4 text-[10px] leading-relaxed text-muted-foreground">
             <div className="mb-1 font-semibold text-foreground">Existing submitted mappings are protected</div>
-            To change an active mapping, use Imported work orders. The revision flow preserves its history and requires a reason.
+            Admins and planners can revise an active mapping from Imported work orders. Revisions preserve history and require a reason.
           </div>
         </aside>
       </div>

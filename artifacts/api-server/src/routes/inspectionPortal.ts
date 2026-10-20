@@ -463,7 +463,7 @@ router.get("/work-orders/:workOrderNo", requireRole("Administrator", "Planner/Co
   }));
 });
 
-router.post("/template-mappings", requireRole("Administrator", "Planner/Coordinator"), async (req, res): Promise<void> => {
+router.post("/template-mappings", requireRole(...ALLOWED_ROLES), async (req, res): Promise<void> => {
   const body = SubmitTemplateMappingBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -471,8 +471,14 @@ router.post("/template-mappings", requireRole("Administrator", "Planner/Coordina
   }
   const { workOrderNo, templateId, idempotencyKey } = body.data;
   const actorId = currentUserId(req);
+  const [submitter] = await db.select().from(portalUsers).where(eq(portalUsers.id, actorId)).limit(1);
   const [workOrder] = await db.select().from(sapWorkOrders).where(eq(sapWorkOrders.workOrderNo, workOrderNo)).limit(1);
   if (!workOrder) {
+    res.status(404).json({ error: "SAP work order not found." });
+    return;
+  }
+  const visibleRows = await getVisibleWorkOrderRows(actorId, submitter?.role ?? "");
+  if (!visibleRows.some(({ workOrder: visibleWorkOrder }) => visibleWorkOrder.workOrderNo === workOrderNo)) {
     res.status(404).json({ error: "SAP work order not found." });
     return;
   }
@@ -501,7 +507,6 @@ router.post("/template-mappings", requireRole("Administrator", "Planner/Coordina
     return;
   }
 
-  const [submitter] = await db.select().from(portalUsers).where(eq(portalUsers.id, actorId)).limit(1);
   const notificationId = randomUUID();
   const submittedAt = new Date();
   await db.transaction(async (tx) => {
@@ -549,7 +554,7 @@ router.post("/template-mappings", requireRole("Administrator", "Planner/Coordina
     });
     await tx.insert(portalNotifications).values({
       id: notificationId,
-      operatorId: existing?.operatorId ?? actorId,
+      operatorId: actorId,
       workOrderNo,
       payload: {
         description: workOrder.description,
