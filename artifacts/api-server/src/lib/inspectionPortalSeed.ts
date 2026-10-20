@@ -157,6 +157,12 @@ const workOrders = [
   },
 ];
 
+const demoTemplateMappings = [
+  { workOrderNo: "0000417823", templateId: "HFIR-0103", templateName: "DIESEL GENERATOR WEEKLY INSPECTION" },
+  { workOrderNo: "0000417829", templateId: "HFIR-0101", templateName: "VACUUM TRUCK PRE-USE CHECKLIST" },
+  { workOrderNo: "0000417832", templateId: "HFIR-0107", templateName: "SCAFFOLDING PRE-USE INSPECTION" },
+] as const;
+
 const demoRounds = [
   {
     id: "round-demo-001",
@@ -273,6 +279,13 @@ export async function seedInspectionPortal(): Promise<void> {
     }))).onConflictDoNothing();
 
     await db.insert(workOrderMappings).values([
+      ...demoTemplateMappings.map(({ workOrderNo, templateId }) => ({
+        workOrderNo,
+        templateId,
+        state: "Submitted",
+        submittedBy: "demo-planner",
+        submittedAt: new Date("2026-10-20T08:00:00.000Z"),
+      })),
       {
         workOrderNo: "0000417824",
         templateId: "HFIR-0102",
@@ -331,6 +344,13 @@ export async function seedInspectionPortal(): Promise<void> {
     }))).onConflictDoNothing();
 
     const demoHistoryEvents = [
+      ...demoTemplateMappings.map(({ workOrderNo, templateId, templateName }) => ({
+        workOrderNo,
+        type: "Template mapping submitted",
+        description: `Sample SAP work order mapped to HFIR template ${templateName} (${templateId}).`,
+        actor: "demo-planner",
+        occurredAt: new Date("2026-10-20T08:00:00.000Z"),
+      })),
       ...workOrders.map((row) => ({
         workOrderNo: row.workOrderNo,
         type: "SAP import",

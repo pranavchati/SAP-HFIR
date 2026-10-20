@@ -76,7 +76,7 @@ const clerkAppearance = {
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/mapping', label: 'Mapping', icon: Link2, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
-  { href: '/assignments', label: 'Assignments', icon: UsersRound, roles: ['Operator'] },
+  { href: '/assignments', label: 'Assignments', icon: UsersRound, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/rounds', label: 'HFIR rounds', icon: Activity, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/history', label: 'Handoff history', icon: FileClock, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
   { href: '/notifications', label: 'Notifications', icon: Bell, roles: ['Administrator', 'Planner/Coordinator', 'Operator'] },
@@ -405,7 +405,7 @@ function ImportPage() {
 
 function Assignments() {
   const q=useListAssignments(); const templates=useListTemplates(); const dashboard=useGetPortalDashboard();
-   return <div className="page-enter"><Heading eyebrow="Operator queue" title="Assignments" description="Submitted portal handoffs for the current operator. Assignment is separate from HFIR scheduling and round execution."/>
+   return <div className="page-enter"><Heading eyebrow="Assignment queue" title="Assignments" description="Submitted operator assignments and shared demo handoffs. Administrators and planners see all assignments; operators see their own and shared samples. HFIR scheduling and execution remain separate."/>
      {q.isLoading?<Card><State mode="loading"/></Card>:q.isError?<Card><State mode="error" retry={()=>q.refetch()}/></Card>:!q.data?.length?<Card><State mode="empty"/></Card>:<div className="grid gap-4 lg:grid-cols-2">{q.data.map(wo=><Card key={wo.workOrderNo} className="overflow-hidden"><div className="flex items-start justify-between border-b border-border p-5"><div><div className="font-mono text-[10px] text-primary">{wo.workOrderNo}</div><h2 className="mt-1 font-display text-lg font-bold">{wo.description}</h2><div className="mt-2 text-[11px] text-muted-foreground">{wo.asset} · {wo.functionalLocation || wo.plant}</div></div><span className="badge-green">Submitted</span></div><div className="grid grid-cols-2 gap-4 p-5"><div><div className="field-caption">Template</div><div className="mt-1 text-xs font-semibold">{wo.templateName || templates.data?.templates?.find(t=>t.id===wo.templateId)?.name || '—'}</div><div className="mt-1 font-mono text-[9px] text-muted-foreground">{wo.templateId}</div></div><div><div className="field-caption">Assigned operator</div><div className="mt-1 text-xs font-semibold">{wo.operatorName || '—'}</div></div><div><div className="field-caption">Due date</div><div className="mt-1 text-xs">{fmtDate(wo.dueDate)}</div></div><div><div className="field-caption">Submitted</div><div className="mt-1 text-xs">{wo.submittedAt?new Date(wo.submittedAt).toLocaleString():'—'}</div></div></div>{wo.instructions&&<div className="mx-5 mb-3 border-l-2 border-border bg-secondary/50 p-3 text-[10px] leading-relaxed"><b>Assignment instructions:</b> {wo.instructions}</div>}<div className="mx-5 mb-3 border-l-2 border-[#dc945a] bg-secondary/60 p-3 text-[10px] leading-relaxed"><span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-primary">Required manual instruction</span>{INSTRUCTION}</div><div className="flex flex-wrap items-center gap-2 px-5 pb-4"><Button variant="secondary" testId={`button-copy-assignment-${wo.workOrderNo}`} onClick={()=>void navigator.clipboard?.writeText(wo.workOrderNo)}>Copy work order number</Button>{dashboard.data?.integrations.openHfirUrl?<a className="btn-quiet text-[10px]" href={dashboard.data.integrations.openHfirUrl} target="_blank" rel="noreferrer">Open HFIR <ArrowRight size={12}/></a>:<span className="text-[9px] text-muted-foreground">HFIR link not configured</span>}</div><div className="px-5 pb-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">No round is scheduled by this assignment.</div></Card>)}</div>}
   </div>;
 }
@@ -629,7 +629,7 @@ function Router() {
       <Route path="/import"><PortalPage roles={['Administrator','Planner/Coordinator']}><ImportPage/></PortalPage></Route>
       <Route path="/work-orders"><PortalPage roles={['Administrator','Planner/Coordinator']}><WorkOrders/></PortalPage></Route>
       <Route path="/samples"><PortalPage roles={['Administrator','Planner/Coordinator']}><SampleWorkOrders/></PortalPage></Route>
-      <Route path="/assignments"><PortalPage roles={['Operator']}><Assignments/></PortalPage></Route>
+      <Route path="/assignments"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><Assignments/></PortalPage></Route>
       <Route path="/rounds"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><Rounds/></PortalPage></Route>
       <Route path="/history"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><History/></PortalPage></Route>
       <Route path="/notifications"><PortalPage roles={['Administrator','Planner/Coordinator','Operator']}><Notifications/></PortalPage></Route>

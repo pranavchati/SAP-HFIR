@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bell, CheckCircle2, Link2, LoaderCircle, TriangleAlert } from "lucide-react";
 import {
   getGetPortalDashboardQueryKey,
+  getListAssignmentsQueryKey,
   getListNotificationsQueryKey,
   getListTransactionHistoryQueryKey,
   getListWorkOrdersQueryKey,
@@ -11,6 +12,7 @@ import {
   useSubmitTemplateMapping,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
+import MappingList from "@/components/mapping-list";
 
 export default function MappingPage() {
   const workOrdersQuery = useListWorkOrders({});
@@ -48,6 +50,7 @@ export default function MappingPage() {
       setTemplateId("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getListWorkOrdersQueryKey({}) }),
+        queryClient.invalidateQueries({ queryKey: getListAssignmentsQueryKey() }),
         queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
         queryClient.invalidateQueries({ queryKey: getGetPortalDashboardQueryKey() }),
         queryClient.invalidateQueries({ queryKey: getListTransactionHistoryQueryKey() }),
@@ -76,6 +79,8 @@ export default function MappingPage() {
           </Link>
         </div>
       )}
+
+      <MappingList workOrders={workOrders} loading={workOrdersQuery.isLoading} failed={workOrdersQuery.isError} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
         <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">

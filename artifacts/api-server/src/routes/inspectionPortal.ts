@@ -877,10 +877,11 @@ router.post("/templates/import", requireRole("Administrator"), async (req, res):
   res.json(ImportTemplatesResponse.parse({ batchId, accepted, rejected: errors.length, updated, duplicates: 0, errors, preview: [] }));
 });
 
-router.get("/assignments", requireRole("Administrator", "Planner/Coordinator", "Operator"), async (req, res): Promise<void> => {
+router.get("/assignments", async (req, res): Promise<void> => {
   const userId = currentUserId(req);
-  const rows = await getWorkOrderRows();
-  const assignments = rows.filter((row) => row.mapping?.state === "Submitted" && row.mapping.operatorId === userId).map((row) => workOrderShape(row));
+  const [user] = await db.select().from(portalUsers).where(eq(portalUsers.id, userId)).limit(1);
+  const rows = await getVisibleWorkOrderRows(userId, user?.role ?? "Operator");
+  const assignments = rows.filter((row) => row.mapping?.state === "Submitted" && !!row.mapping.operatorId).map((row) => workOrderShape(row));
   res.json(ListAssignmentsResponse.parse(assignments));
 });
 
