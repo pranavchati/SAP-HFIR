@@ -39,6 +39,8 @@ export * from './sapSubmissionQueueResultStatus';
 export * from './template';
 export * from './templateCatalog';
 export * from './templateImportInput';
+export * from './templateMappingInput';
+export * from './templateMappingResult';
 export * from './userRoleInput';
 export * from './userRoleInputRole';
 export * from './workOrder';

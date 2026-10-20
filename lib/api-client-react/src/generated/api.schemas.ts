@@ -154,6 +154,23 @@ export interface MappingInput {
   idempotencyKey: string;
 }
 
+export interface TemplateMappingInput {
+  /** @minLength 1 */
+  workOrderNo: string;
+  /** @minLength 1 */
+  templateId: string;
+  /** @minLength 1 */
+  idempotencyKey: string;
+}
+
+export interface TemplateMappingResult {
+  workOrderNo: string;
+  templateId: string;
+  templateName: string;
+  notificationCreated: boolean;
+  message: string;
+}
+
 export interface MappingResult {
   workOrder: WorkOrder;
   notificationCreated: boolean;
@@ -276,6 +293,7 @@ export interface PortalNotification {
   templateName: string;
   templateId: string;
   operatorId: string;
+  notificationType?: string;
   dueDate: string;
   instructions: string;
   submitter: string;

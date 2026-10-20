@@ -14,6 +14,7 @@ export interface PortalNotification {
   templateName: string;
   templateId: string;
   operatorId: string;
+  notificationType?: string;
   dueDate: string;
   instructions: string;
   submitter: string;

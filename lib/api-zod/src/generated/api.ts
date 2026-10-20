@@ -207,6 +207,29 @@ export const SaveWorkOrderMappingResponse = zod.object({
 
 
 /**
+ * @summary Link an imported SAP work order with an active HFIR round template
+ */
+
+
+
+
+
+export const SubmitTemplateMappingBody = zod.object({
+  "workOrderNo": zod.string().min(1),
+  "templateId": zod.string().min(1),
+  "idempotencyKey": zod.string().min(1)
+})
+
+export const SubmitTemplateMappingResponse = zod.object({
+  "workOrderNo": zod.string(),
+  "templateId": zod.string(),
+  "templateName": zod.string(),
+  "notificationCreated": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Validate and import SAP XML work orders
  */
 export const ImportWorkOrdersBody = zod.object({
@@ -305,6 +328,7 @@ export const ListNotificationsResponseItem = zod.object({
   "templateName": zod.string(),
   "templateId": zod.string(),
   "operatorId": zod.string(),
+  "notificationType": zod.string().optional(),
   "dueDate": zod.string(),
   "instructions": zod.string(),
   "submitter": zod.string(),
@@ -329,6 +353,7 @@ export const MarkNotificationReadResponse = zod.object({
   "templateName": zod.string(),
   "templateId": zod.string(),
   "operatorId": zod.string(),
+  "notificationType": zod.string().optional(),
   "dueDate": zod.string(),
   "instructions": zod.string(),
   "submitter": zod.string(),

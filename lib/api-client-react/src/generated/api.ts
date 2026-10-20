@@ -43,6 +43,8 @@ import type {
   SapSubmissionQueueResult,
   TemplateCatalog,
   TemplateImportInput,
+  TemplateMappingInput,
+  TemplateMappingResult,
   UserRoleInput,
   WorkOrder,
   WorkOrderDetail,
@@ -630,6 +632,94 @@ export const useSaveWorkOrderMapping = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSaveWorkOrderMappingMutationOptions(options));
+    }
+
+export const getSubmitTemplateMappingUrl = () => {
+
+
+
+
+  return `/api/portal/template-mappings`
+}
+
+/**
+ * @summary Link an imported SAP work order with an active HFIR round template
+ */
+export const submitTemplateMapping = async (templateMappingInput: TemplateMappingInput, options?: Parameters<typeof customFetch>[1]): Promise<TemplateMappingResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TemplateMappingResult>(getSubmitTemplateMappingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(templateMappingInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitTemplateMappingMutationKey = () => ['submitTemplateMapping'] as const;
+
+export const getSubmitTemplateMappingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitTemplateMapping>>, TError,SubmitTemplateMappingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitTemplateMapping>>, TError,SubmitTemplateMappingMutationVariables, TContext> => {
+
+const mutationKey = getSubmitTemplateMappingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitTemplateMapping>>, SubmitTemplateMappingMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitTemplateMapping(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitTemplateMappingMutationResult = NonNullable<Awaited<ReturnType<typeof submitTemplateMapping>>>
+    export type SubmitTemplateMappingMutationBody = BodyType<TemplateMappingInput>
+    export type SubmitTemplateMappingMutationError = ErrorType<unknown>
+    export type SubmitTemplateMappingMutationVariables = {data: BodyType<TemplateMappingInput>}
+
+    /**
+ * @summary Link an imported SAP work order with an active HFIR round template
+ */
+export const useSubmitTemplateMapping = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitTemplateMapping>>, TError,SubmitTemplateMappingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitTemplateMapping>>,
+        TError,
+        SubmitTemplateMappingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitTemplateMappingMutationOptions(options));
     }
 
 export const getImportWorkOrdersUrl = () => {

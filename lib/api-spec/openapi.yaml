@@ -116,6 +116,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MappingResult"
+  /portal/template-mappings:
+    post:
+      operationId: submitTemplateMapping
+      tags: [portal]
+      summary: Link an imported SAP work order with an active HFIR round template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateMappingInput"
+      responses:
+        "200":
+          description: Saved template mapping and notification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateMappingResult"
   /portal/imports/work-orders:
     post:
       operationId: importWorkOrders
@@ -550,6 +568,22 @@ components:
         instructions: { type: string }
         revisionReason: { type: string }
         idempotencyKey: { type: string }
+    TemplateMappingInput:
+      type: object
+      required: [workOrderNo, templateId, idempotencyKey]
+      properties:
+        workOrderNo: { type: string, minLength: 1 }
+        templateId: { type: string, minLength: 1 }
+        idempotencyKey: { type: string, minLength: 1 }
+    TemplateMappingResult:
+      type: object
+      required: [workOrderNo, templateId, templateName, notificationCreated, message]
+      properties:
+        workOrderNo: { type: string }
+        templateId: { type: string }
+        templateName: { type: string }
+        notificationCreated: { type: boolean }
+        message: { type: string }
     MappingResult:
       type: object
       required: [workOrder, notificationCreated]
@@ -693,6 +727,7 @@ components:
         templateName: { type: string }
         templateId: { type: string }
         operatorId: { type: string }
+        notificationType: { type: string }
         dueDate: { type: string }
         instructions: { type: string }
         submitter: { type: string }

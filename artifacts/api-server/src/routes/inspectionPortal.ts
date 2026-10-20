@@ -49,6 +49,8 @@ import {
   SaveWorkOrderMappingBody,
   SaveWorkOrderMappingParams,
   SaveWorkOrderMappingResponse,
+  SubmitTemplateMappingBody,
+  SubmitTemplateMappingResponse,
   RequestRoundAttachmentUploadUrlBody,
   RequestRoundAttachmentUploadUrlParams,
   RequestRoundAttachmentUploadUrlResponse,
@@ -263,6 +265,7 @@ function notificationShape(row: typeof portalNotifications.$inferSelect) {
     templateName: payload.templateName ?? "",
     templateId: payload.templateId ?? "",
     operatorId: row.operatorId,
+    notificationType: payload.notificationType ?? "Operator assignment",
     dueDate: payload.dueDate ?? "",
     instructions: payload.instructions ?? "",
     submitter: payload.submitter ?? "",
@@ -457,6 +460,121 @@ router.get("/work-orders/:workOrderNo", requireRole("Administrator", "Planner/Co
     workOrder: workOrderShape(row, rounds.length),
     history: history.map(historyShape),
     rounds: rounds.map((round) => roundShape(round)),
+  }));
+});
+
+router.post("/template-mappings", requireRole("Administrator", "Planner/Coordinator"), async (req, res): Promise<void> => {
+  const body = SubmitTemplateMappingBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const { workOrderNo, templateId, idempotencyKey } = body.data;
+  const actorId = currentUserId(req);
+  const [workOrder] = await db.select().from(sapWorkOrders).where(eq(sapWorkOrders.workOrderNo, workOrderNo)).limit(1);
+  if (!workOrder) {
+    res.status(404).json({ error: "SAP work order not found." });
+    return;
+  }
+  const [template] = await db.select().from(hfirTemplates)
+    .where(and(eq(hfirTemplates.id, templateId), eq(hfirTemplates.active, true)))
+    .limit(1);
+  if (!template) {
+    res.status(400).json({ error: "Choose an active HFIR round template." });
+    return;
+  }
+  const [existing] = await db.select().from(workOrderMappings)
+    .where(eq(workOrderMappings.workOrderNo, workOrderNo))
+    .limit(1);
+  if (existing?.state === "Submitted") {
+    if (existing.idempotencyKey === idempotencyKey && existing.templateId === templateId) {
+      res.json(SubmitTemplateMappingResponse.parse({
+        workOrderNo,
+        templateId,
+        templateName: template.name,
+        notificationCreated: false,
+        message: "This template mapping was already submitted.",
+      }));
+      return;
+    }
+    res.status(409).json({ error: "This SAP work order already has a submitted mapping. Revise it from Imported work orders." });
+    return;
+  }
+
+  const [submitter] = await db.select().from(portalUsers).where(eq(portalUsers.id, actorId)).limit(1);
+  const notificationId = randomUUID();
+  const submittedAt = new Date();
+  await db.transaction(async (tx) => {
+    if (existing) {
+      const revisions = await tx.select().from(mappingRevisions).where(eq(mappingRevisions.workOrderNo, workOrderNo));
+      await tx.insert(mappingRevisions).values({
+        workOrderNo,
+        revision: revisions.length + 1,
+        snapshot: {
+          templateId: existing.templateId,
+          operatorId: existing.operatorId,
+          instructions: existing.instructions,
+          state: existing.state,
+          submittedBy: existing.submittedBy,
+          submittedAt: dateString(existing.submittedAt),
+        },
+        changedBy: actorId,
+        reason: "Template mapping submitted from the Mapping menu.",
+      });
+    }
+    await tx.insert(workOrderMappings).values({
+      workOrderNo,
+      templateId,
+      operatorId: existing?.operatorId ?? null,
+      instructions: existing?.instructions ?? "",
+      state: "Submitted",
+      submittedBy: actorId,
+      submittedAt,
+      revisionReason: existing ? "Template mapping submitted from the Mapping menu." : "",
+      idempotencyKey,
+      updatedAt: submittedAt,
+    }).onConflictDoUpdate({
+      target: workOrderMappings.workOrderNo,
+      set: {
+        templateId,
+        operatorId: existing?.operatorId ?? null,
+        instructions: existing?.instructions ?? "",
+        state: "Submitted",
+        submittedBy: actorId,
+        submittedAt,
+        revisionReason: existing ? "Template mapping submitted from the Mapping menu." : "",
+        idempotencyKey,
+        updatedAt: submittedAt,
+      },
+    });
+    await tx.insert(portalNotifications).values({
+      id: notificationId,
+      operatorId: existing?.operatorId ?? actorId,
+      workOrderNo,
+      payload: {
+        description: workOrder.description,
+        asset: workOrder.asset,
+        templateName: template.name,
+        templateId,
+        notificationType: "Template mapping",
+        dueDate: workOrder.dueDate ?? "",
+        instructions: "The SAP work order is linked to this HFIR template. Scheduling and execution remain in HFIR.",
+        submitter: submitter?.name ?? actorId,
+      },
+    });
+  });
+  await recordHistory(
+    workOrderNo,
+    "Template mapping submitted",
+    `SAP work order mapped to HFIR template ${template.name} (${templateId}).`,
+    actorId,
+  );
+  res.json(SubmitTemplateMappingResponse.parse({
+    workOrderNo,
+    templateId,
+    templateName: template.name,
+    notificationCreated: true,
+    message: "Mapping submitted. A notification was added to Notifications.",
   }));
 });
 
