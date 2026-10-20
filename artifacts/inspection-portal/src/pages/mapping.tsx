@@ -25,10 +25,11 @@ export default function MappingPage() {
   const workOrders = workOrdersQuery.data ?? [];
   const availableWorkOrders = workOrders.filter((workOrder) => workOrder.mappingState !== "Submitted");
   const activeTemplates = (templatesQuery.data?.templates ?? []).filter((template) => template.active);
+  const sampleWorkOrders = availableWorkOrders.filter((workOrder) => workOrder.workOrderNo.startsWith("00009991"));
   const selectedWorkOrder = availableWorkOrders.find((workOrder) => workOrder.workOrderNo === workOrderNo);
   const loading = workOrdersQuery.isLoading || templatesQuery.isLoading;
   const failed = workOrdersQuery.isError || templatesQuery.isError;
-  const canSubmit = !!workOrderNo && !!templateId && !loading && !submitMapping.isPending;
+  const canSubmit = !!selectedWorkOrder && activeTemplates.some((template) => template.id === templateId) && !loading && !failed && !submitMapping.isPending;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,7 +89,7 @@ export default function MappingPage() {
             </div>
           </div>
 
-          {failed ? (
+          {failed && (
             <div className="flex items-start gap-3 p-5 text-xs" role="alert">
               <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[#b04d40]" />
               <div>
@@ -107,11 +108,12 @@ export default function MappingPage() {
                 </button>
               </div>
             </div>
-          ) : loading ? (
+          )}
+          {loading && (
             <div className="flex items-center gap-2 p-5 text-xs text-muted-foreground" role="status">
               <LoaderCircle size={15} className="animate-spin" /> Loading work orders and templates…
             </div>
-          ) : (
+          )}
             <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5 p-5">
               {!availableWorkOrders.length && (
                 <div className="rounded-md border border-[#d8d2c7] bg-[#f3f0e8] px-4 py-3 text-[11px] leading-relaxed text-muted-foreground" data-testid="mapping-no-orders">
@@ -135,7 +137,7 @@ export default function MappingPage() {
                     setErrorMessage("");
                   }}
                   required
-                  disabled={!availableWorkOrders.length}
+                  disabled={loading || failed || !availableWorkOrders.length}
                   data-testid="select-mapping-work-order"
                 >
                   <option value="">Select an SAP work order</option>
@@ -158,7 +160,7 @@ export default function MappingPage() {
                     setErrorMessage("");
                   }}
                   required
-                  disabled={!activeTemplates.length}
+                  disabled={loading || failed || !activeTemplates.length}
                   data-testid="select-mapping-template"
                 >
                   <option value="">Select an HFIR template</option>
@@ -197,10 +199,23 @@ export default function MappingPage() {
                 </button>
               </div>
             </form>
-          )}
         </section>
 
         <aside className="space-y-4">
+          <div className="rounded-lg border border-border bg-card p-5" data-testid="mapping-sample-data">
+            <h2 className="font-display text-sm font-bold">Sample work orders</h2>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">These shared demo records are available to every role. Choose one below, then select an HFIR template above.</p>
+            <div className="mt-3 space-y-2">
+              {sampleWorkOrders.map((workOrder) => (
+                <button key={workOrder.workOrderNo} type="button" className="block w-full rounded-md border border-border bg-secondary/35 p-3 text-left hover:border-primary disabled:opacity-50" disabled={loading || failed || submitMapping.isPending} data-testid={`button-sample-mapping-${workOrder.workOrderNo}`} onClick={() => { setWorkOrderNo(workOrder.workOrderNo); setSuccessMessage(""); setErrorMessage(""); }}>
+                  <span className="block font-mono text-[11px] font-semibold">{workOrder.workOrderNo}</span>
+                  <span className="mt-1 block text-[10px] text-muted-foreground">{workOrder.description}</span>
+                  <span className="mt-1 block text-[10px] text-primary">{workOrder.asset} · {workOrder.plant}</span>
+                </button>
+              ))}
+              {!sampleWorkOrders.length && <p className="text-[11px] text-muted-foreground">{loading ? "Loading samples…" : failed ? "Sample records will appear when the connection is restored." : "These samples have already been mapped. Other available work orders are listed in the dropdown."}</p>}
+            </div>
+          </div>
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center gap-2 font-display text-sm font-bold"><Bell size={15} className="text-primary" /> After you submit</div>
             <ol className="mt-4 space-y-4">

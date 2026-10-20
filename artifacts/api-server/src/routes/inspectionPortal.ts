@@ -414,7 +414,9 @@ router.get("/dashboard", async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/work-orders", requireRole("Administrator", "Planner/Coordinator", "Operator"), async (req, res): Promise<void> => {
+// All signed-in users can browse shared samples, including before admin setup.
+// getVisibleWorkOrderRows still enforces assignment scope for real records.
+router.get("/work-orders", async (req, res): Promise<void> => {
   const query = ListWorkOrdersQueryParams.safeParse(req.query);
   if (!query.success) {
     res.status(400).json({ error: query.error.message });
@@ -463,7 +465,7 @@ router.get("/work-orders/:workOrderNo", requireRole("Administrator", "Planner/Co
   }));
 });
 
-router.post("/template-mappings", requireRole(...ALLOWED_ROLES), async (req, res): Promise<void> => {
+router.post("/template-mappings", async (req, res): Promise<void> => {
   const body = SubmitTemplateMappingBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -477,7 +479,7 @@ router.post("/template-mappings", requireRole(...ALLOWED_ROLES), async (req, res
     res.status(404).json({ error: "SAP work order not found." });
     return;
   }
-  const visibleRows = await getVisibleWorkOrderRows(actorId, submitter?.role ?? "");
+  const visibleRows = await getVisibleWorkOrderRows(actorId, submitter?.role ?? "Operator");
   if (!visibleRows.some(({ workOrder: visibleWorkOrder }) => visibleWorkOrder.workOrderNo === workOrderNo)) {
     res.status(404).json({ error: "SAP work order not found." });
     return;
