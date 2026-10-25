@@ -5,6 +5,10 @@ dist
 tmp
 out-tsc
 *.tsbuildinfo
+# .NET generated output
+**/bin/
+**/obj/
+**/publish/
 .expo
 .expo-shared
 

@@ -1,2 +1,3 @@
 - [Vite React dependency cache](vite-react-dependency-cache.md) — stale optimized deps can load old React versions after package updates; clear the artifact's Vite cache.
 - [Inspection portal demo visibility](inspection-portal-demo-visibility.md) — share seeded work orders and matching round history with operators; keep real records assignment-scoped.
+- [C# migration scope](csharp-migration-scope.md) — keep the original SAP-HFIR portal intact while developing the separate C# v2.

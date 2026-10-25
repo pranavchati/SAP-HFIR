@@ -94,7 +94,7 @@
     }
 
     private RenderFragment OverviewView => @<div>
-        <PageHeading Eyebrow="Operations overview" Title="SAP - HFIR Custom web page" Description="Coordinate SAP work orders, HFIR inspections, and the handoff between teams." />
+        <PageHeading Eyebrow="SAP - HFIR Custom web page" Title="Operations Overview" Description="Coordinate SAP work orders, HFIR inspections, and the handoff between teams." />
         <div class="stat-grid">
             <StatCard Label="Imported work orders" Value="@Store.ImportedCount.ToString()" Note="SAP source records" Tone="blue" />
             <StatCard Label="Unmapped work orders" Value="@Store.UnmappedCount.ToString()" Note="Awaiting HFIR template" Tone="amber" />
@@ -308,7 +308,7 @@
         Notify($"PDF attachment recorded for {round.Id} in this demo session.");
     }
 
-    private static bool AttachmentEligible(HfirRound round) => round.Approval.Equals("Approved", StringComparison.OrdinalIgnoreCase) || round.Execution.Equals("Successful", StringComparison.OrdinalIgnoreCase);
+    private static bool AttachmentEligible(HfirRound round) => round.Approval.Equals("Approved", StringComparison.OrdinalIgnoreCase) || round.Approval.Equals("Successful", StringComparison.OrdinalIgnoreCase);
     private string TemplateName(string id) => Store.Templates.FirstOrDefault(x => x.Id == id)?.Name ?? "—";
     private static string PriorityTone(string value) => value.ToLowerInvariant() switch { "high" => "priority-high", "medium" => "priority-medium", _ => "priority-low" };
     private static string FormatSapDate(string value) => DateTime.TryParseExact(value, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var date) ? date.ToString("MMM dd, yyyy") : value;
