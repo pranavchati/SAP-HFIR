@@ -44,11 +44,13 @@ Execution outcome, approval outcome, and overdue indicator are separate values. 
 
 Changing a submitted mapping requires a reason. Saving a draft does not create an operator notification. Submitting a mapping records a portal notification and the required manual HFIR instruction; it does not schedule a round.
 
-## Integration boundary and .NET projects
+## Integration boundary and .NET client
 
-The backend exposes its language-neutral REST contract at `/api/portal`; the OpenAPI definition is maintained in the workspace API spec. A separate .NET application can call these endpoints using the supported authenticated session/token flow, or implement the source adapters and send normalized imports to the API. It must not bypass portal role checks.
+The backend exposes its language-neutral REST contract at `/api/portal`; the OpenAPI definition is maintained in `lib/api-spec/openapi.yaml`. The repository includes a .NET 10 client library under `dotnet/` for SAP XML preview/import, mapping handoff, and HFIR result exchange. Its setup, role requirements, examples, and tests are documented in `dotnet/README.md`.
 
-The SAP XML parser and HFIR result normalizer are isolated behind adapter interfaces in the API server. To enable live integrations, implement and configure vendor-specific adapters using the relevant SAP/HFIR API documentation, credentials, and environment-specific mapping rules. Do not switch an integration to `Live` until its adapter has been connected and verified. No .NET project or vendor-specific connector is included because no endpoint contract or credentials were supplied.
+The client accepts a current Clerk session JWT from the host application's existing sign-in flow and sends it as a bearer token. It does not sign users in, create credentials, or bypass server-side portal role checks. Use HTTPS and do not store tokens in source control. SAP work-order import and mapping handoff require Administrator or Planner/Coordinator; HFIR result import requires Administrator. The API server remains authoritative and returns 401/403 when authentication or role checks fail.
+
+The .NET client sends normalized imports to the portal; it does not itself connect to SAP or HFIR. The SAP XML parser and HFIR result normalizer remain isolated behind adapter interfaces in the API server. To enable live integrations, implement and configure vendor-specific adapters using the relevant SAP/HFIR API documentation, credentials, and environment-specific mapping rules. Do not switch an integration to `Live` until its adapter has been connected and verified.
 
 ## Demo files
 
