@@ -1,0 +1,30 @@
+kind = "web"
+previewPath = "/sap-hfir-portal-v2/"
+title = "SAP-HFIR Portal v2"
+description = "An ASP.NET Core and Blazor C# rewrite of the SAP–HFIR Inspection Portal with sample work-order import, template mapping, assignments, HFIR rounds, notifications, and handoff history."
+version = "1.0.0"
+id = "artifacts/sap-hfir-portal-v2"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/sap-hfir-portal-v2/" ]
+localPort = 21688
+
+[services.development]
+run = "cd app && ASPNETCORE_ENVIRONMENT=Development dotnet run --no-launch-profile --urls http://0.0.0.0:$PORT"
+
+[services.production]
+[services.production.build]
+args = [ "dotnet", "publish", "artifacts/sap-hfir-portal-v2/app/SapHfirPortalV2.csproj", "--configuration", "Release", "--output", "artifacts/sap-hfir-portal-v2/app/publish" ]
+
+[services.production.run]
+args = [ "dotnet", "artifacts/sap-hfir-portal-v2/app/publish/SapHfirPortalV2.dll", "--urls", "http://0.0.0.0:21688" ]
+
+[services.production.run.env]
+PORT = "21688"
+BASE_PATH = "/sap-hfir-portal-v2/"
+
+[services.env]
+PORT = "21688"
+BASE_PATH = "/sap-hfir-portal-v2/"

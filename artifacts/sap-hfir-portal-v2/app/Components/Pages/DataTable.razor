@@ -1,0 +1,13 @@
+<div class="table-card card">
+    <div class="table-scroll">
+        <table>
+            <thead><tr>@foreach (var header in Headers) { <th>@header</th> }</tr></thead>
+            <tbody>@ChildContent</tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string[] Headers { get; set; } = [];
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

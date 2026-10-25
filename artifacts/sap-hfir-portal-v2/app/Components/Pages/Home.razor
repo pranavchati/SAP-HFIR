@@ -1,0 +1,316 @@
+﻿@page "/"
+@using System.Xml.Linq
+@using Microsoft.AspNetCore.Components.Forms
+@inject PortalStore Store
+@inject IWebHostEnvironment Host
+
+<div class="shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">F</div>
+            <div><strong>FIELD / DESK</strong><small>Inspection coordination</small></div>
+        </div>
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="nav-list" aria-label="Portal navigation">
+            @foreach (var item in NavItems)
+            {
+                <button class="nav-item @(activeView == item.Name ? "active" : "")" @onclick="() => SetView(item.Name)">
+                    <span class="nav-icon">@item.Icon</span><span>@item.Name</span>
+                    @if (item.Name == "Notifications" && Store.Notifications.Any(n => !n.Read))
+                    {
+                        <span class="nav-count">@Store.Notifications.Count(n => !n.Read)</span>
+                    }
+                </button>
+            }
+        </nav>
+        <div class="sidebar-foot">
+            <div class="connection-dot"></div>
+            <div><strong>Demo workspace</strong><small>SAP + SQL Server not connected</small></div>
+        </div>
+    </aside>
+
+    <main class="main-panel">
+        <header class="topbar">
+            <div class="crumb">Operations <span>/</span> @activeView</div>
+            <div class="top-actions">
+                <span class="environment-pill"><i></i> DEMO MODE</span>
+                <select class="role-select" aria-label="Preview role" @bind="currentRole">
+                    <option>Administrator</option>
+                    <option>Planner/Coordinator</option>
+                    <option>Operator</option>
+                </select>
+                <div class="avatar">PA</div>
+            </div>
+        </header>
+        <section class="content">
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <div class="notice @(messageIsError ? "notice-error" : "notice-success")">
+                    <span>@message</span><button @onclick="() => message = null" aria-label="Dismiss">×</button>
+                </div>
+            }
+            @switch (activeView)
+            {
+                case "Overview": @OverviewView; break;
+                case "Imported SAP work orders": @ImportedOrdersView; break;
+                case "Mapping": @MappingView; break;
+                case "Assignments": @AssignmentsView; break;
+                case "HFIR rounds": @RoundsView; break;
+                case "Handoff history": @HistoryView; break;
+                case "Notifications": @NotificationsView; break;
+            }
+        </section>
+        <footer class="page-foot"><span>SAP – HFIR Inspection Portal <b>v2</b></span><span>Last refreshed just now · Riyadh time</span></footer>
+    </main>
+</div>
+
+@code {
+    private string activeView = "Overview";
+    private string currentRole = "Administrator";
+    private string? message;
+    private bool messageIsError;
+
+    private readonly (string Name, string Icon)[] NavItems =
+    [
+        ("Overview", "▦"),
+        ("Imported SAP work orders", "⇣"),
+        ("Mapping", "⇄"),
+        ("Assignments", "♧"),
+        ("HFIR rounds", "⌁"),
+        ("Handoff history", "◷"),
+        ("Notifications", "♧"),
+    ];
+
+    private void SetView(string view)
+    {
+        activeView = view;
+        message = null;
+    }
+
+    private void Notify(string text, bool error = false)
+    {
+        message = text;
+        messageIsError = error;
+    }
+
+    private RenderFragment OverviewView => @<div>
+        <PageHeading Eyebrow="Operations overview" Title="SAP - HFIR Custom web page" Description="Coordinate SAP work orders, HFIR inspections, and the handoff between teams." />
+        <div class="stat-grid">
+            <StatCard Label="Imported work orders" Value="@Store.ImportedCount.ToString()" Note="SAP source records" Tone="blue" />
+            <StatCard Label="Unmapped work orders" Value="@Store.UnmappedCount.ToString()" Note="Awaiting HFIR template" Tone="amber" />
+            <StatCard Label="Submitted mappings" Value="@Store.SubmittedCount.ToString()" Note="Linked to HFIR" Tone="green" />
+            <StatCard Label="HFIR rounds" Value="@Store.Rounds.Count.ToString()" Note="Shared sample records" Tone="slate" />
+        </div>
+        <div class="dashboard-grid">
+            <section class="card">
+                <div class="card-head"><div><span class="eyebrow">WORK QUEUE</span><h2>Recent handoffs</h2></div><button class="text-button" @onclick='() => SetView("Handoff history")'>View history →</button></div>
+                <div class="event-list">
+                    @foreach (var row in Store.History.Take(4))
+                    {
+                        <div class="event-row"><div class="event-dot"></div><div class="event-main"><strong>@row.Event</strong><p>@row.WorkOrderNo · @row.Detail</p></div><time>@row.At.ToString("HH:mm")</time></div>
+                    }
+                </div>
+            </section>
+            <section class="card integration-card">
+                <span class="eyebrow">INTEGRATIONS</span><h2>Connection status</h2>
+                <div class="integration-line"><span><b class="integration-logo sap">S</b> SAP</span><span class="status-demo">Not connected</span></div>
+                <div class="integration-line"><span><b class="integration-logo db">DB</b> SQL Server</span><span class="status-demo">Not connected</span></div>
+                <p class="muted small">This v2 preview uses sample data. Configure the SAP endpoint and SQL Server connection before using live records.</p>
+            </section>
+        </div>
+        <section class="card flow-card"><div class="card-head"><div><span class="eyebrow">WORKFLOW</span><h2>How the handoff works</h2></div></div>
+            <div class="flow-steps"><div><span>01</span><strong>Import</strong><small>Bring in SAP orders</small></div><i>→</i><div><span>02</span><strong>Map</strong><small>Choose an HFIR template</small></div><i>→</i><div><span>03</span><strong>Execute</strong><small>Record the HFIR round</small></div><i>→</i><div><span>04</span><strong>Return</strong><small>Queue status for SAP</small></div></div>
+        </section>
+    </div>;
+
+    private RenderFragment ImportedOrdersView => @<div>
+        <PageHeading Eyebrow="SAP INTEGRATION · DEMO" Title="Imported SAP work orders" Description="Browse imported maintenance orders and inspect their current HFIR mapping status." />
+        <section class="card import-card">
+            <div><span class="eyebrow">IMPORT XML</span><h2>Import an SAP work-order file</h2><p class="muted small">Choose an XML file with WorkOrderNo, Description, Asset, Plant, Priority, and DueDate fields.</p></div>
+            <InputFile OnChange="ImportSapXml" accept=".xml,text/xml,application/xml" class="file-input" />
+        </section>
+        <DataTable Headers="@(new[] { "SAP work order", "Description", "Asset", "Plant", "Priority", "Due date", "Mapping" })">
+            @foreach (var order in Store.WorkOrders)
+            {
+                <tr><td class="mono strong">@order.Number</td><td>@order.Description</td><td>@order.Asset</td><td>@order.Plant</td><td><span class="priority @PriorityTone(order.Priority)">@order.Priority</span></td><td>@order.DueDate</td><td><StatusPill Value="@order.MappingState" /></td></tr>
+            }
+        </DataTable>
+    </div>;
+
+    private RenderFragment MappingView => @<div>
+        <PageHeading Eyebrow="COORDINATION" Title="Mapping" Description="Link an imported SAP work order to the HFIR inspection template that should guide its execution." />
+        <div class="mapping-grid">
+            <section class="card mapping-form">
+                <div class="card-head"><div><span class="eyebrow">NEW LINK</span><h2>Create a template mapping</h2></div><span class="round-icon">⇄</span></div>
+                <label>SAP work order<select @bind="selectedWorkOrder"><option value="">Select a work order</option>@foreach (var order in Store.WorkOrders) { <option value="@order.Number">@order.Number · @order.Description</option> }</select></label>
+                <label>HFIR round template<select @bind="selectedTemplate"><option value="">Select a template</option>@foreach (var template in Store.Templates) { <option value="@template.Id">@template.Id · @template.Name</option> }</select></label>
+                <div class="helper-note">Submitting creates a portal notification and a handoff-history entry. It does not schedule or execute the round in HFIR.</div>
+                <button class="primary-button" @onclick="SubmitMapping">Submit mapping <span>→</span></button>
+            </section>
+            <section class="card sample-card">
+                <div class="card-head"><div><span class="eyebrow">SAMPLE DATA</span><h2>Available templates</h2></div></div>
+                @foreach (var template in Store.Templates)
+                {
+                    <div class="template-row"><span class="template-mark">H</span><div><strong>@template.Name</strong><small>@template.Id · Active HFIR template</small></div><span class="active-label">ACTIVE</span></div>
+                }
+            </section>
+        </div>
+        <section class="card saved-mappings">
+            <div class="card-head"><div><span class="eyebrow">CURRENT LINKS</span><h2>Saved mappings</h2></div><span class="subtle-count">@Store.WorkOrders.Count(x => !string.IsNullOrEmpty(x.TemplateId)) records</span></div>
+            <DataTable Headers="@(new[] { "SAP work order", "Description", "HFIR template", "Mapping status", "Assigned operator" })">
+                @foreach (var order in Store.WorkOrders.Where(x => !string.IsNullOrEmpty(x.TemplateId)))
+                {
+                    <tr><td class="mono strong">@order.Number</td><td>@order.Description</td><td>@TemplateName(order.TemplateId)</td><td><StatusPill Value="@order.MappingState" /></td><td>@(string.IsNullOrEmpty(order.Operator) ? "Not assigned" : order.Operator)</td></tr>
+                }
+            </DataTable>
+        </section>
+    </div>;
+
+    private RenderFragment AssignmentsView => @<div>
+        <PageHeading Eyebrow="FIELD OPERATIONS" Title="Assignments" Description="Review shared assignments across roles and assign mapped SAP work orders to HFIR operators." />
+        <DataTable Headers="@(new[] { "SAP work order", "Description", "HFIR template", "Operator", "Due date", "Assignment" })">
+            @foreach (var order in Store.WorkOrders.Where(x => x.MappingState == "Submitted"))
+            {
+                <tr><td class="mono strong">@order.Number</td><td>@order.Description</td><td>@TemplateName(order.TemplateId)</td><td><select class="compact-select" value="@order.Operator" @onchange='e => Assign(order, e.Value?.ToString() ?? "")'><option value="">Choose operator</option>@foreach (var op in Store.Operators) { <option value="@op">@op</option> }</select></td><td>@order.DueDate</td><td><StatusPill Value="@(string.IsNullOrEmpty(order.Operator) ? "Needs assignment" : "Assigned")" /></td></tr>
+            }
+        </DataTable>
+    </div>;
+
+    private RenderFragment RoundsView => @<div>
+        <PageHeading Eyebrow="HFIR EXECUTION · DEMO DATA" Title="HFIR rounds" Description="Round results are sample records linked to the same SAP work orders shown in mappings and handoff history." />
+        <div class="callout"><span class="callout-icon">i</span><span><strong>Submission behavior:</strong> Submit to SAP queues a status snapshot inside the portal. It does not send data to a live SAP system yet.</span></div>
+        <DataTable Headers="@(new[] { "Round", "SAP work order", "HFIR template", "Operator", "Scheduled", "Execution", "Execution approval", "Attachment", "Submit to SAP" })">
+            @foreach (var round in Store.Rounds)
+            {
+                <tr>
+                    <td class="mono strong">@round.Id</td><td class="mono">@round.WorkOrderNo</td><td>@round.TemplateName</td><td>@round.Operator</td><td>@round.Scheduled</td>
+                    <td><StatusPill Value="@round.Execution" /></td><td><StatusPill Value="@round.Approval" /></td>
+                    <td>
+                        @if (AttachmentEligible(round))
+                        {
+                            @if (string.IsNullOrEmpty(round.Attachment))
+                            {
+                                <label class="upload-link">＋ Upload PDF<InputFile OnChange="e => AttachPdf(round, e)" accept="application/pdf,.pdf" /></label>
+                            }
+                            else { <span class="attachment-name">↗ @round.Attachment</span> }
+                        }
+                        else { <span class="muted">—</span> }
+                    </td>
+                    <td><button class="small-button" disabled="@(round.SapStatus == "Queued")" @onclick="() => QueueSap(round)">@(round.SapStatus == "Queued" ? "Queued" : "Submit")</button></td>
+                </tr>
+            }
+        </DataTable>
+    </div>;
+
+    private RenderFragment HistoryView => @<div>
+        <PageHeading Eyebrow="AUDIT TRAIL" Title="Handoff history" Description="A shared timeline of mapping, assignment, round approval, and SAP submission queue activity." />
+        <section class="card filter-row"><span class="search-icon">⌕</span><input placeholder="Search SAP work order or activity" @bind="historySearch" @bind:event="oninput" /><span class="subtle-count">@FilteredHistory.Count entries</span></section>
+        <DataTable Headers="@(new[] { "Date & time", "SAP work order", "Activity", "Details", "Actor" })">
+            @foreach (var row in FilteredHistory)
+            {
+                <tr><td>@row.At.ToString("MMM dd, yyyy · HH:mm")</td><td class="mono strong">@row.WorkOrderNo</td><td><span class="event-badge">@row.Event</span></td><td>@row.Detail</td><td>@row.Actor</td></tr>
+            }
+        </DataTable>
+    </div>;
+
+    private RenderFragment NotificationsView => @<div>
+        <PageHeading Eyebrow="UPDATES" Title="Notifications" Description="Mapping submissions and assignment updates recorded by the portal." />
+        <section class="card notification-list">
+            @foreach (var item in Store.Notifications.OrderByDescending(x => x.CreatedAt))
+            {
+                <article class="notification-row @(item.Read ? "read" : "")"><div class="notification-icon">♧</div><div class="notification-copy"><div class="notification-title">@item.Message</div><p>SAP work order <span class="mono">@item.WorkOrderNo</span></p><time>@item.CreatedAt.ToString("MMM dd, yyyy · HH:mm")</time></div><div class="notification-actions"><span class="notification-state">@(item.Read ? "Read" : "New")</span>@if (!item.Read) { <button class="text-button" @onclick="() => item.Read = true">Mark read</button> }</div></article>
+            }
+        </section>
+    </div>;
+
+    private IReadOnlyList<HandoffEvent> FilteredHistory => string.IsNullOrWhiteSpace(historySearch)
+        ? Store.History
+        : Store.History.Where(x => x.WorkOrderNo.Contains(historySearch, StringComparison.OrdinalIgnoreCase) || x.Event.Contains(historySearch, StringComparison.OrdinalIgnoreCase) || x.Detail.Contains(historySearch, StringComparison.OrdinalIgnoreCase)).ToList();
+    private string selectedWorkOrder = "";
+    private string selectedTemplate = "";
+    private string historySearch = "";
+
+    private void SubmitMapping()
+    {
+        if (string.IsNullOrWhiteSpace(selectedWorkOrder) || string.IsNullOrWhiteSpace(selectedTemplate))
+        {
+            Notify("Select both a SAP work order and an HFIR template.", true);
+            return;
+        }
+        Store.SubmitMapping(selectedWorkOrder, selectedTemplate);
+        Notify($"Mapping saved for SAP work order {selectedWorkOrder}. A notification has been added.");
+        selectedWorkOrder = "";
+        selectedTemplate = "";
+    }
+
+    private void Assign(WorkOrder order, string operatorName)
+    {
+        if (string.IsNullOrWhiteSpace(operatorName)) return;
+        Store.Assign(order.Number, operatorName);
+        Notify($"{order.Number} assigned to {operatorName}.");
+    }
+
+    private void QueueSap(HfirRound round)
+    {
+        if (Store.QueueForSap(round)) Notify($"HFIR status for {round.Id} was queued in the portal. It was not transmitted to SAP.");
+    }
+
+    private async Task ImportSapXml(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            await using var stream = args.File.OpenReadStream(2 * 1024 * 1024);
+            var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+            var imported = 0;
+            foreach (var node in document.Descendants().Where(x => x.Name.LocalName == "WorkOrder"))
+            {
+                string Read(string name) => node.Elements().FirstOrDefault(x => x.Name.LocalName == name)?.Value.Trim() ?? "";
+                var number = Read("WorkOrderNo");
+                if (string.IsNullOrWhiteSpace(number) || Store.WorkOrders.Any(x => x.Number == number)) continue;
+                Store.WorkOrders.Add(new WorkOrder
+                {
+                    Number = number,
+                    Description = Read("Description"),
+                    Asset = Read("Asset"),
+                    Plant = Read("Plant"),
+                    Priority = string.IsNullOrWhiteSpace(Read("Priority")) ? "Medium" : Read("Priority"),
+                    DueDate = FormatSapDate(Read("DueDate")),
+                });
+                imported++;
+            }
+            Notify(imported == 0 ? "No new work orders were found in that XML file." : $"Imported {imported} SAP work order(s) into the demo workspace.");
+        }
+        catch (Exception ex)
+        {
+            Notify($"Could not read the XML file: {ex.Message}", true);
+        }
+    }
+
+    private async Task AttachPdf(HfirRound round, InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file.Size == 0 || file.Size > 25 * 1024 * 1024 || !file.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            Notify("Choose a PDF file no larger than 25 MB.", true);
+            return;
+        }
+        await using var input = file.OpenReadStream(25 * 1024 * 1024);
+        var header = new byte[5];
+        var count = await input.ReadAsync(header);
+        if (count < 5 || System.Text.Encoding.ASCII.GetString(header) != "%PDF-")
+        {
+            Notify("The selected file does not appear to be a valid PDF.", true);
+            return;
+        }
+        // This preview keeps attachment metadata only; production storage must be
+        // connected to private object storage and access-controlled downloads.
+        round.Attachment = file.Name;
+        Notify($"PDF attachment recorded for {round.Id} in this demo session.");
+    }
+
+    private static bool AttachmentEligible(HfirRound round) => round.Approval.Equals("Approved", StringComparison.OrdinalIgnoreCase) || round.Execution.Equals("Successful", StringComparison.OrdinalIgnoreCase);
+    private string TemplateName(string id) => Store.Templates.FirstOrDefault(x => x.Id == id)?.Name ?? "—";
+    private static string PriorityTone(string value) => value.ToLowerInvariant() switch { "high" => "priority-high", "medium" => "priority-medium", _ => "priority-low" };
+    private static string FormatSapDate(string value) => DateTime.TryParseExact(value, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var date) ? date.ToString("MMM dd, yyyy") : value;
+
+}

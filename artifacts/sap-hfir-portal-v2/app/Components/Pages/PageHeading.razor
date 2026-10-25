@@ -1,0 +1,11 @@
+<div class="page-heading">
+    <div class="eyebrow">@Eyebrow</div>
+    <h1>@Title</h1>
+    <p>@Description</p>
+</div>
+
+@code {
+    [Parameter] public string Eyebrow { get; set; } = "";
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+}

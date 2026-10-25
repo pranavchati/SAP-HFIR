@@ -1,0 +1,12 @@
+<span class="status-pill @Tone">@Value</span>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    private string Tone => Value.ToLowerInvariant() switch
+    {
+        "submitted" or "assigned" or "approved" or "successful" => "pill-green",
+        "unmapped" or "pending" or "needs assignment" or "in progress" => "pill-amber",
+        "rejected" or "incomplete" => "pill-red",
+        _ => "pill-neutral",
+    };
+}
